@@ -1,0 +1,21 @@
+python3 inference_sh.py \
+                --variable height \
+                --MTL False \
+                --model_name SEResNet18 \
+                --activation relu \
+                --pretrained_model ./DL_run/height/check_pt_senet_1000m/experiment_7/checkpoint.pth.tar \
+                --path_prefix ./testCase/infer_test_Chicago \
+                --sentinel_1 raw_data/Chicago_2018_sentinel_1_50pt.tif \
+                --sentinel_2 raw_data/Chicago_2018_sentinel_2_50pt.tif \
+                --save_path 1000m/Chicago_height_senet.tif \
+                --tmp_dir ./tmp \
+                --tmp_suffix Chicago \
+                --extent -87.740 41.733 -87.545 41.996 \
+                --resolution 0.009 \
+                --patch_size 120 \
+                --batch_size 128 \
+                --padding 0.01 \
+                --v_min 2.0 \
+                --v_max 1000.0 \
+                --log_scale False \
+                --cuda_used False

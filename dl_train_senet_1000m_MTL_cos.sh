@@ -1,0 +1,22 @@
+python3 DL_train.py \
+                --training_dataset /data/lyy/BuildingProject/dataset/patch_data_50pt_s120_1000m_train.lmdb \
+                --validation_dataset /data/lyy/BuildingProject/dataset/patch_data_50pt_s120_1000m_valid.lmdb \
+                --dataset_cached True \
+                --log_scale False \
+                --model SEResNet18 \
+                --input_size 120 \
+                --loss_type AdaptiveHuber \
+                --delta 0.0065 \
+                --delta_back 4.6566 \
+                --lr 0.01 \
+                --lr_scheduler cos \
+                --weight_decay 1e-4 \
+                --MTL True \
+                --weight_1 200.0 \
+                --weight_2 1.0 \
+                --epochs 155 \
+                --batch_size 256 \
+                --num_workers 4 \
+                --trained_record ./DL_run/height/check_pt_senet_500m_MTL/experiment_10/checkpoint.pth.tar \
+                --base_dir DL_run/height \
+                --checkname check_pt_senet_1000m_MTL
