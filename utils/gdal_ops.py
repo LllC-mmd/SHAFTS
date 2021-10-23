@@ -14,6 +14,7 @@ import osr
 import geopandas as gpd
 from geopandas import tools as gtools
 from shapely import ops as gops
+from pyproj import Transformer
 
 '''
 Before execute these functions,
@@ -701,8 +702,8 @@ def createFishNet(input_shp, output_grid, height, width, driver_name="ESRI Shape
     input_proj = shp_layer.GetSpatialRef()
 
     # ------define x,y coordinates of output FishNet
-    num_row = math.ceil((y_max - y_min) / height)
-    num_col = math.ceil((x_max - x_min) / width)
+    num_row = int(np.ceil(round(y_max - y_min, 6) / height))
+    num_col = int(np.ceil(round(x_max - x_min, 6) / width))
 
     fishnet_X_left = np.linspace(x_min, x_min+(num_col-1)*width, num_col)
     fishnet_X_right = fishnet_X_left + width
@@ -763,8 +764,8 @@ def getFootprintFromShape(building_shp, fishnet_shp, output_grid, resolution=0.0
     x_min, x_max, y_min, y_max = shp_layer.GetExtent()
     input_proj = shp_layer.GetSpatialRef()
 
-    num_row = math.ceil((y_max - y_min) / resolution)
-    num_col = math.ceil((x_max - x_min) / resolution)
+    num_row = int(np.ceil(round(y_max - y_min, 6) / resolution))
+    num_col = int(np.ceil(round(x_max - x_min, 6) / resolution))
 
     if num_col * num_row != 0:
         # ------create FishNet layer for building Shapefile
@@ -790,8 +791,8 @@ def getFootprintFromShape(building_shp, fishnet_shp, output_grid, resolution=0.0
         
         if extent is not None:
             x_min, y_min, x_max, y_max = extent
-            num_row = math.ceil((y_max - y_min) / resolution)
-            num_col = math.ceil((x_max - x_min) / resolution)
+            num_row = int(np.ceil(round(y_max - y_min, 6) / resolution))
+            num_col = int(np.ceil(round(x_max - x_min, 6) / resolution))
 
         footprint_arr = np.zeros(num_row * num_col)
         for v in val_list:
@@ -819,7 +820,7 @@ def getFootprintFromShape(building_shp, fishnet_shp, output_grid, resolution=0.0
     return res
 
 
-def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=0.0009, reserved=False, num_cpu=1):
+def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=0.0009, reserved=False, num_cpu=1, shrink_deg=1e-6):
     # ------get basic settings for parallel computing
     num_cpu_available = multiprocessing.cpu_count()
     if num_cpu_available < num_cpu:
@@ -855,24 +856,39 @@ def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=0.0009, reserve
             # ------------simplify building layers (some buildings would be stacked)
             # ---------------create the union of buildings (split all the self-intersected polygons for cleaning)
             shp_df = gpd.read_file(shp_path)
+            source_crs = shp_df.crs
+
             shp_union_geom = [g for g in gops.unary_union(shp_df.geometry)]
             shp_union_ids = [ids for ids in range(0, len(shp_union_geom))]
             shp_union_df = gpd.GeoDataFrame({"ids": shp_union_ids, "geometry": shp_union_geom})
-            shp_union_df.set_crs(crs=shp_df.crs, inplace=True)
+            if shp_union_df.crs is None:
+                shp_union_df.set_crs(crs=source_crs, inplace=True)
+            else:
+                shp_union_df.to_crs(crs=source_crs, inplace=True)
             
             #tmp_un_path = os.path.join(shp_dir, shp_base + "_union_tmp.shp")
             #shp_union_df.to_file(tmp_un_path)
             # ---------------use the spatial join to attach original attributes to cleaned polygons
             shp_df_copy = shp_df.copy()
             # ------------------shrink the original polygons for strict 'within' identification
-            shp_df_copy.geometry = shp_df_copy.geometry.buffer(distance=-0.001)
+            if shp_df_copy.crs.to_epsg() == 4326:
+                shp_df_copy.geometry = shp_df_copy.geometry.buffer(distance=-shrink_deg)
+            else:
+                distance_trans = Transformer.from_crs(source_crs, "epsg:4326")
+                x_ini, y_ini = shp_df_copy["geometry"][0].centroid.coords[0]
+                x1, y1 = distance_trans.transform(x_ini, y_ini)
+                distance_trans_back = Transformer.from_crs("epsg:4326", source_crs)
+                x1_p, y1_p = distance_trans_back.transform(x1 + shrink_deg, y1)
+                shrink_dis = np.sqrt((x_ini - x1_p)**2 + (y_ini - y1_p)**2)
+                shp_df_copy.geometry = shp_df_copy.geometry.buffer(distance=-shrink_dis)
+
             res_df = gtools.sjoin(left_df=shp_union_df, right_df=shp_df_copy, how="inner", op="contains")
             # ---------------aggregate the attributes on the same polygon by averaging
             res_df = res_df.dissolve(by="ids", aggfunc="mean")
             #tmp_ds_path = os.path.join(shp_dir, shp_base + "_tmp_ds.shp")
             #res_df.to_file(tmp_ds_path)
 
-            tmp_path = os.path.join(shp_dir, shp_base + "_tmp.shp")
+            tmp_path = os.path.join(shp_dir, shp_base + "_temp.shp")
             res_df.to_file(tmp_path)
 
             os.system("ogr2ogr {0} -t_srs 'EPSG:{1}' {2}".format(shp_projected_path, srtm_epsg, tmp_path))
@@ -881,12 +897,25 @@ def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=0.0009, reserve
         shp_ds = ogr.Open(shp_projected_path)
         shp_layer = shp_ds.GetLayer()
         x_min, x_max, y_min, y_max = shp_layer.GetExtent()
+
+        num_row = math.ceil((y_max - y_min) / resolution)
+        num_col = math.ceil((x_max - x_min) / resolution)
+
+        row_id_ref = np.array_split(np.arange(num_row, dtype=int), n_sub)
+        col_id_ref = np.array_split(np.arange(num_col, dtype=int), n_sub)
+        x_min_list = np.array([x_min + row_id_ref[i][0]*resolution for i in range(0, n_sub)])
+        x_max_list = np.array([x_min + (row_id_ref[i][-1]+1)*resolution for i in range(0, n_sub)])
+        y_min_list = np.array([y_min + col_id_ref[i][0]*resolution for i in range(0, n_sub)])
+        y_max_list = np.array([y_min + (col_id_ref[i][-1]+1)*resolution for i in range(0, n_sub)])
+
+        '''
         dx = (x_max - x_min) / n_sub
         dy = (y_max - y_min) / n_sub
         x_min_list = np.array([x_min + i*dx for i in range(0, n_sub)])
         x_max_list = x_min_list + dx
         y_min_list = np.array([y_min + i*dy for i in range(0, n_sub)])
         y_max_list = y_min_list + dy
+        '''
 
         subRegion_list = [os.path.join(shp_dir, shp_base + "_projected_{0}_temp_{1}.shp".format(srtm_epsg, str(i)+str(j))) for i in range(0, n_sub) for j in range(0, n_sub)]
         output_list = [os.path.join(shp_dir, shp_base + "_building_footprint_temp_{0}.tif".format(str(i)+str(j))) for i in range(0, n_sub) for j in range(0, n_sub)]
@@ -918,7 +947,7 @@ def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=0.0009, reserve
         os.system("gdalwarp {0} {1}".format(" ".join(res_tiff_list), tiff_path))
 
         if not reserved:
-            os.system("rm {0}".format(os.path.join(shp_dir, "*_temp_*")))
+            os.system("rm {0}".format(os.path.join(shp_dir, "*_temp*")))
             os.system("rm {0}".format(os.path.join(shp_dir, "_*")))
 
         print("The building footprint map of {0} has been created at: {1}".format(city, tiff_path))
@@ -934,8 +963,8 @@ def getHeightFromShape(building_shp, fishnet_shp, output_grid, height_field, res
     x_min, x_max, y_min, y_max = shp_layer.GetExtent()
     input_proj = shp_layer.GetSpatialRef()
 
-    num_row = math.ceil((y_max - y_min) / resolution)
-    num_col = math.ceil((x_max - x_min) / resolution)
+    num_row = int(np.ceil(round(y_max - y_min, 6) / resolution))
+    num_col = int(np.ceil(round(x_max - x_min, 6) / resolution))
 
     if num_col * num_row != 0:
         # ------create FishNet layer for building Shapefile
@@ -961,8 +990,8 @@ def getHeightFromShape(building_shp, fishnet_shp, output_grid, height_field, res
 
         if extent is not None:
             x_min, y_min, x_max, y_max = extent
-            num_row = math.ceil((y_max - y_min) / resolution)
-            num_col = math.ceil((x_max - x_min) / resolution)
+            num_row = int(np.ceil(round(y_max - y_min, 6) / resolution))
+            num_col = int(np.ceil(round(x_max - x_min, 6) / resolution))
 
         height_arr = np.zeros(num_row*num_col)
 
@@ -1010,8 +1039,8 @@ def getHeightFromShape_option(building_shp, fishnet_shp, output_grid, height_fie
     x_min, x_max, y_min, y_max = shp_layer.GetExtent()
     input_proj = shp_layer.GetSpatialRef()
 
-    num_row = math.ceil((y_max - y_min) / resolution)
-    num_col = math.ceil((x_max - x_min) / resolution)
+    num_row = int(np.ceil(round(y_max - y_min, 6) / resolution))
+    num_col = int(np.ceil(round(x_max - x_min, 6) / resolution))
 
     if num_col * num_row != 0:
         # ------create FishNet layer for building Shapefile
@@ -1037,8 +1066,8 @@ def getHeightFromShape_option(building_shp, fishnet_shp, output_grid, height_fie
 
         if extent is not None:
             x_min, y_min, x_max, y_max = extent
-            num_row = math.ceil((y_max - y_min) / resolution)
-            num_col = math.ceil((x_max - x_min) / resolution)
+            num_row = int(np.ceil(round(y_max - y_min, 6) / resolution))
+            num_col = int(np.ceil(round(x_max - x_min, 6) / resolution))
 
         height_arr = np.zeros(num_row*num_col)
         footprint_arr = np.zeros_like(height_arr)
@@ -1080,7 +1109,7 @@ def getHeightFromShape_option(building_shp, fishnet_shp, output_grid, height_fie
     return res
 
 
-def GetHeightFromCSV(sample_csv, path_prefix=None, resolution=30.0, noData=-1000000.0, reserved=False, num_cpu=1, option=False):
+def GetHeightFromCSV(sample_csv, path_prefix=None, resolution=0.0009, noData=-1000000.0, reserved=False, num_cpu=1, option=False, shrink_deg=1e-6):
     # ------get basic settings for parallel computing
     num_cpu_available = multiprocessing.cpu_count()
     if num_cpu_available < num_cpu:
@@ -1129,24 +1158,41 @@ def GetHeightFromCSV(sample_csv, path_prefix=None, resolution=30.0, noData=-1000
            # ------------simplify building layers (some buildings would be stacked)
             # ---------------create the union of buildings (split all the self-intersected polygons for cleaning)
             shp_df = gpd.read_file(shp_path)
+            source_crs = shp_df.crs
+
             shp_union_geom = [g for g in gops.unary_union(shp_df.geometry)]
             shp_union_ids = [ids for ids in range(0, len(shp_union_geom))]
             shp_union_df = gpd.GeoDataFrame({"ids": shp_union_ids, "geometry": shp_union_geom})
-            shp_union_df.set_crs(crs=shp_df.crs, inplace=True)
+            if shp_union_df.crs is None:
+                shp_union_df.set_crs(crs=source_crs, inplace=True)
+            else:
+                shp_union_df.to_crs(crs=source_crs, inplace=True)
             
             #tmp_un_path = os.path.join(shp_dir, shp_base + "_union_tmp.shp")
             #shp_union_df.to_file(tmp_un_path)
             # ---------------use the spatial join to attach original attributes to cleaned polygons
             shp_df_copy = shp_df.copy()
             # ------------------shrink the original polygons for strict 'within' identification
-            shp_df_copy.geometry = shp_df_copy.geometry.buffer(distance=-0.001)
+            # ------------------with the distance specified in degrees
+            if shp_df_copy.crs.to_epsg() == 4326:
+                shp_df_copy.geometry = shp_df_copy.geometry.buffer(distance=-shrink_deg)
+            else:
+                distance_trans = Transformer.from_crs(source_crs, "epsg:4326")
+                x_ini, y_ini = shp_df_copy["geometry"][0].centroid.coords[0]
+                x1, y1 = distance_trans.transform(x_ini, y_ini)
+                distance_trans_back = Transformer.from_crs("epsg:4326", source_crs)
+                x1_p, y1_p = distance_trans_back.transform(x1 + shrink_deg, y1)
+                shrink_dis = np.sqrt((x_ini - x1_p)**2 + (y_ini - y1_p)**2)
+                shp_df_copy.geometry = shp_df_copy.geometry.buffer(distance=-shrink_dis)
+
             res_df = gtools.sjoin(left_df=shp_union_df, right_df=shp_df_copy, how="inner", op="contains")
+
             # ---------------aggregate the attributes on the same polygon by averaging
             res_df = res_df.dissolve(by="ids", aggfunc="mean")
             #tmp_ds_path = os.path.join(shp_dir, shp_base + "_tmp_ds.shp")
             #res_df.to_file(tmp_ds_path)
 
-            tmp_path = os.path.join(shp_dir, shp_base + "_tmp.shp")
+            tmp_path = os.path.join(shp_dir, shp_base + "_temp.shp")
             res_df.to_file(tmp_path)
 
             os.system("ogr2ogr {0} -t_srs 'EPSG:{1}' -select '{2}' {3}".format(shp_projected_path, srtm_epsg, height_field, tmp_path))
@@ -1155,12 +1201,25 @@ def GetHeightFromCSV(sample_csv, path_prefix=None, resolution=30.0, noData=-1000
         shp_ds = ogr.Open(shp_projected_path)
         shp_layer = shp_ds.GetLayer()
         x_min, x_max, y_min, y_max = shp_layer.GetExtent()
+
+        num_row = math.ceil((y_max - y_min) / resolution)
+        num_col = math.ceil((x_max - x_min) / resolution)
+
+        row_id_ref = np.array_split(np.arange(num_row, dtype=int), n_sub)
+        col_id_ref = np.array_split(np.arange(num_col, dtype=int), n_sub)
+        x_min_list = np.array([x_min + row_id_ref[i][0]*resolution for i in range(0, n_sub)])
+        x_max_list = np.array([x_min + (row_id_ref[i][-1]+1)*resolution for i in range(0, n_sub)])
+        y_min_list = np.array([y_min + col_id_ref[i][0]*resolution for i in range(0, n_sub)])
+        y_max_list = np.array([y_min + (col_id_ref[i][-1]+1)*resolution for i in range(0, n_sub)])
+
+        '''
         dx = (x_max - x_min) / n_sub
         dy = (y_max - y_min) / n_sub
         x_min_list = np.array([x_min + i*dx for i in range(0, n_sub)])
         x_max_list = x_min_list + dx
         y_min_list = np.array([y_min + i*dy for i in range(0, n_sub)])
         y_max_list = y_min_list + dy
+        '''
 
         subRegion_list = [os.path.join(shp_dir, shp_base + "_projected_{0}_temp_{1}.shp".format(srtm_epsg, str(i)+str(j))) for i in range(0, n_sub) for j in range(0, n_sub)]
         output_list = [os.path.join(shp_dir, shp_base + "_building_height_temp_{0}.tif".format(str(i)+str(j))) for i in range(0, n_sub) for j in range(0, n_sub)]
@@ -1197,7 +1256,7 @@ def GetHeightFromCSV(sample_csv, path_prefix=None, resolution=30.0, noData=-1000
         os.system("gdalwarp {0} {1}".format(" ".join(res_tiff_list), tiff_path))
 
         if not reserved:
-            os.system("rm {0}".format(os.path.join(shp_dir, "*_temp_*")))
+            os.system("rm {0}".format(os.path.join(shp_dir, "*_temp*")))
             os.system("rm {0}".format(os.path.join(shp_dir, "_*")))
 
         print("The building height map of {0} has been created at: {1}".format(city, tiff_path))
