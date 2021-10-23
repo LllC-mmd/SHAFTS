@@ -1,4 +1,5 @@
 import os
+import glob
 import json
 import math
 import multiprocessing
@@ -10,6 +11,9 @@ from kneed import KneeLocator
 import gdal
 import ogr
 import osr
+import geopandas as gpd
+from geopandas import tools as gtools
+from shapely import ops as gops
 
 '''
 Before execute these functions,
@@ -750,9 +754,9 @@ def createFishNet(input_shp, output_grid, height, width, driver_name="ESRI Shape
 
 
 # ************************* [1] Building Footprint *************************
-def getFootprintFromShape(building_shp, output_grid, resolution=100.0, scale=1.0, reserved=False, suffix=None, extent=None):
+def getFootprintFromShape(building_shp, fishnet_shp, output_grid, resolution=0.0009, scale=1.0, reserved=False, suffix=None, extent=None):
     buiding_dir = os.path.dirname(building_shp)
-    fishnet_name = os.path.join(buiding_dir, "_fishnet_{0}.shp".format(suffix))
+    # fishnet_name = os.path.join(buiding_dir, "_fishnet_{0}.shp".format(suffix))
 
     shp_ds = ogr.Open(building_shp)
     shp_layer = shp_ds.GetLayer()
@@ -764,11 +768,11 @@ def getFootprintFromShape(building_shp, output_grid, resolution=100.0, scale=1.0
 
     if num_col * num_row != 0:
         # ------create FishNet layer for building Shapefile
-        createFishNet(input_shp=building_shp, output_grid=fishnet_name, height=resolution, width=resolution, extent=extent)
+        # createFishNet(input_shp=building_shp, output_grid=fishnet_name, height=resolution, width=resolution, extent=extent)
 
         # ------get the intersection part of building layer and FishNet layer
         # ------the output layer contains segmented buildings using a field named "FID" marking which cell each part belongs to
-        fishnet_ds = ogr.Open(fishnet_name)
+        fishnet_ds = ogr.Open(fishnet_shp)
         fishnet_layer = fishnet_ds.GetLayer()
 
         intersect_driver = ogr.GetDriverByName("ESRI Shapefile")
@@ -776,7 +780,7 @@ def getFootprintFromShape(building_shp, output_grid, resolution=100.0, scale=1.0
         if os.path.exists(intersect_path):
             os.remove(intersect_path)
         intersect_ds = intersect_driver.CreateDataSource(intersect_path)
-        intersect_layer = intersect_ds.CreateLayer(output_grid, geom_type=ogr.wkbPolygon)
+        intersect_layer = intersect_ds.CreateLayer(output_grid, geom_type=ogr.wkbMultiPolygon)
 
         shp_layer.Intersection(fishnet_layer, intersect_layer, ["METHOD_PREFIX=FN_"])
 
@@ -815,7 +819,7 @@ def getFootprintFromShape(building_shp, output_grid, resolution=100.0, scale=1.0
     return res
 
 
-def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=30.0, reserved=False, num_cpu=1):
+def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=0.0009, reserved=False, num_cpu=1):
     # ------get basic settings for parallel computing
     num_cpu_available = multiprocessing.cpu_count()
     if num_cpu_available < num_cpu:
@@ -848,8 +852,31 @@ def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=30.0, reserved=
         # ---------reproject the Shapefile if not exists
         shp_projected_path = os.path.join(shp_dir, shp_base + "_projected_{0}.shp".format(srtm_epsg))
         if not os.path.exists(shp_projected_path):
-            os.system("ogr2ogr {0} -t_srs 'EPSG:{1}' {2}".format(shp_projected_path, srtm_epsg, shp_path))
+            # ------------simplify building layers (some buildings would be stacked)
+            # ---------------create the union of buildings (split all the self-intersected polygons for cleaning)
+            shp_df = gpd.read_file(shp_path)
+            shp_union_geom = [g for g in gops.unary_union(shp_df.geometry)]
+            shp_union_ids = [ids for ids in range(0, len(shp_union_geom))]
+            shp_union_df = gpd.GeoDataFrame({"ids": shp_union_ids, "geometry": shp_union_geom})
+            shp_union_df.set_crs(crs=shp_df.crs, inplace=True)
+            
+            #tmp_un_path = os.path.join(shp_dir, shp_base + "_union_tmp.shp")
+            #shp_union_df.to_file(tmp_un_path)
+            # ---------------use the spatial join to attach original attributes to cleaned polygons
+            shp_df_copy = shp_df.copy()
+            # ------------------shrink the original polygons for strict 'within' identification
+            shp_df_copy.geometry = shp_df_copy.geometry.buffer(distance=-0.001)
+            res_df = gtools.sjoin(left_df=shp_union_df, right_df=shp_df_copy, how="inner", op="contains")
+            # ---------------aggregate the attributes on the same polygon by averaging
+            res_df = res_df.dissolve(by="ids", aggfunc="mean")
+            #tmp_ds_path = os.path.join(shp_dir, shp_base + "_tmp_ds.shp")
+            #res_df.to_file(tmp_ds_path)
 
+            tmp_path = os.path.join(shp_dir, shp_base + "_tmp.shp")
+            res_df.to_file(tmp_path)
+
+            os.system("ogr2ogr {0} -t_srs 'EPSG:{1}' {2}".format(shp_projected_path, srtm_epsg, tmp_path))
+            
         # ------Divide the whole region into sub-regions
         shp_ds = ogr.Open(shp_projected_path)
         shp_layer = shp_ds.GetLayer()
@@ -869,11 +896,16 @@ def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=30.0, reserved=
         for i in range(0, n_sub):
             for j in range(0, n_sub):
                 extent = [x_min_list[j], y_min_list[i], x_max_list[j], y_max_list[i]]
+                subRegion_name = subRegion_list[i*n_sub+j]
+                suffix = suffix_list[i*n_sub+j]
+                # ------create FishNet layer for building Shapefile
+                fishnet_name = os.path.join(shp_dir, "_fishnet_{0}.shp".format(suffix))
+                createFishNet(input_shp=shp_projected_path, output_grid=fishnet_name, height=resolution, width=resolution, extent=extent)
                 # -----------some sub-region might be empty because no building is present in those grids
                 # -----------also, the bounding box would be narrowed automatically until it contains all of buildings
                 # -----------considering, we must specify the extent of our fishnet layer manually
-                os.system("ogr2ogr -f 'ESRI Shapefile' {0} {1} -clipsrc {2}".format(subRegion_list[i*n_sub+j], shp_projected_path, " ".join(str(x) for x in extent)))
-                arg_list.append((subRegion_list[i*n_sub+j], output_list[i*n_sub+j], resolution, 1.0, True, suffix_list[i*n_sub+j], extent))
+                os.system("ogr2ogr -f 'ESRI Shapefile' -clipsrc {0} {1} {2}".format(" ".join([str(x) for x in extent]), subRegion_name, shp_projected_path))
+                arg_list.append((subRegion_name, fishnet_name, output_list[i*n_sub+j], resolution, 1.0, True, suffix, extent))
 
         # ------call the conversion function for each sub-regions
         pool = multiprocessing.Pool(processes=num_cpu)
@@ -893,9 +925,9 @@ def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=30.0, reserved=
 
 
 # ************************* [2] Building Height *************************
-def getHeightFromShape(building_shp, output_grid, height_field, resolution=100.0, scale=1.0, noData=-1000000.0, reserved=False, suffix=None, extent=None):
+def getHeightFromShape(building_shp, fishnet_shp, output_grid, height_field, resolution=100.0, scale=1.0, noData=-1000000.0, reserved=False, suffix=None, extent=None):
     buiding_dir = os.path.dirname(building_shp)
-    fishnet_name = os.path.join(buiding_dir, "_fishnet_{0}.shp".format(suffix))
+    # fishnet_name = os.path.join(buiding_dir, "_fishnet_{0}.shp".format(suffix))
 
     shp_ds = ogr.Open(building_shp)
     shp_layer = shp_ds.GetLayer()
@@ -907,11 +939,11 @@ def getHeightFromShape(building_shp, output_grid, height_field, resolution=100.0
 
     if num_col * num_row != 0:
         # ------create FishNet layer for building Shapefile
-        createFishNet(input_shp=building_shp, output_grid=fishnet_name, height=resolution, width=resolution, extent=extent)
+        # createFishNet(input_shp=building_shp, output_grid=fishnet_name, height=resolution, width=resolution, extent=extent)
 
         # ------get the intersection part of building layer and FishNet layer
         # ------the output layer contains segmented buildings using a field named "FID" marking which cell each part belongs to
-        fishnet_ds = ogr.Open(fishnet_name)
+        fishnet_ds = ogr.Open(fishnet_shp)
         fishnet_layer = fishnet_ds.GetLayer()
 
         intersect_driver = ogr.GetDriverByName("ESRI Shapefile")
@@ -969,9 +1001,9 @@ def getHeightFromShape(building_shp, output_grid, height_field, resolution=100.0
     return res
 
 
-def getHeightFromShape_option(building_shp, output_grid, height_field, resolution=100.0, scale=1.0, noData=-1000000.0, reserved=False, suffix=None, extent=None):
+def getHeightFromShape_option(building_shp, fishnet_shp, output_grid, height_field, resolution=0.0009, scale=1.0, noData=-1000000.0, reserved=False, suffix=None, extent=None):
     buiding_dir = os.path.dirname(building_shp)
-    fishnet_name = os.path.join(buiding_dir, "_fishnet_{0}.shp".format(suffix))
+    # fishnet_name = os.path.join(buiding_dir, "_fishnet_{0}.shp".format(suffix))
 
     shp_ds = ogr.Open(building_shp)
     shp_layer = shp_ds.GetLayer()
@@ -983,11 +1015,11 @@ def getHeightFromShape_option(building_shp, output_grid, height_field, resolutio
 
     if num_col * num_row != 0:
         # ------create FishNet layer for building Shapefile
-        createFishNet(input_shp=building_shp, output_grid=fishnet_name, height=resolution, width=resolution, extent=extent)
+        # createFishNet(input_shp=building_shp, output_grid=fishnet_name, height=resolution, width=resolution, extent=extent)
 
         # ------get the intersection part of building layer and FishNet layer
         # ------the output layer contains segmented buildings using a field named "FID" marking which cell each part belongs to
-        fishnet_ds = ogr.Open(fishnet_name)
+        fishnet_ds = ogr.Open(fishnet_shp)
         fishnet_layer = fishnet_ds.GetLayer()
 
         intersect_driver = ogr.GetDriverByName("ESRI Shapefile")
@@ -1094,7 +1126,30 @@ def GetHeightFromCSV(sample_csv, path_prefix=None, resolution=30.0, noData=-1000
         # ---------reproject the Shapefile if not exists
         shp_projected_path = os.path.join(shp_dir, shp_base + "_projected_{0}.shp".format(srtm_epsg))
         if not os.path.exists(shp_projected_path):
-            os.system("ogr2ogr {0} -t_srs 'EPSG:{1}' -select '{2}' {3}".format(shp_projected_path, srtm_epsg, height_field, shp_path))
+           # ------------simplify building layers (some buildings would be stacked)
+            # ---------------create the union of buildings (split all the self-intersected polygons for cleaning)
+            shp_df = gpd.read_file(shp_path)
+            shp_union_geom = [g for g in gops.unary_union(shp_df.geometry)]
+            shp_union_ids = [ids for ids in range(0, len(shp_union_geom))]
+            shp_union_df = gpd.GeoDataFrame({"ids": shp_union_ids, "geometry": shp_union_geom})
+            shp_union_df.set_crs(crs=shp_df.crs, inplace=True)
+            
+            #tmp_un_path = os.path.join(shp_dir, shp_base + "_union_tmp.shp")
+            #shp_union_df.to_file(tmp_un_path)
+            # ---------------use the spatial join to attach original attributes to cleaned polygons
+            shp_df_copy = shp_df.copy()
+            # ------------------shrink the original polygons for strict 'within' identification
+            shp_df_copy.geometry = shp_df_copy.geometry.buffer(distance=-0.001)
+            res_df = gtools.sjoin(left_df=shp_union_df, right_df=shp_df_copy, how="inner", op="contains")
+            # ---------------aggregate the attributes on the same polygon by averaging
+            res_df = res_df.dissolve(by="ids", aggfunc="mean")
+            #tmp_ds_path = os.path.join(shp_dir, shp_base + "_tmp_ds.shp")
+            #res_df.to_file(tmp_ds_path)
+
+            tmp_path = os.path.join(shp_dir, shp_base + "_tmp.shp")
+            res_df.to_file(tmp_path)
+
+            os.system("ogr2ogr {0} -t_srs 'EPSG:{1}' -select '{2}' {3}".format(shp_projected_path, srtm_epsg, height_field, tmp_path))
 
         # ------Divide the whole region into sub-regions
         shp_ds = ogr.Open(shp_projected_path)
@@ -1115,8 +1170,16 @@ def GetHeightFromCSV(sample_csv, path_prefix=None, resolution=30.0, noData=-1000
         for i in range(0, n_sub):
             for j in range(0, n_sub):
                 extent = [x_min_list[j], y_min_list[i], x_max_list[j], y_max_list[i]]
-                os.system("ogr2ogr -f 'ESRI Shapefile' {0} {1} -clipsrc {2}".format(subRegion_list[i*n_sub+j], shp_projected_path, " ".join(str(x) for x in extent)))
-                arg_list.append((subRegion_list[i*n_sub+j], output_list[i*n_sub+j], height_field, resolution, scale, noData, True, suffix_list[i*n_sub+j], extent))
+                subRegion_name = subRegion_list[i*n_sub+j]
+                suffix = suffix_list[i*n_sub+j]
+                # ------create FishNet layer for building Shapefile
+                fishnet_name = os.path.join(shp_dir, "_fishnet_{0}.shp".format(suffix))
+                createFishNet(input_shp=shp_projected_path, output_grid=fishnet_name, height=resolution, width=resolution, extent=extent)
+                # -----------some sub-region might be empty because no building is present in those grids
+                # -----------also, the bounding box would be narrowed automatically until it contains all of buildings
+                # -----------considering, we must specify the extent of our fishnet layer manually
+                os.system("ogr2ogr -f 'ESRI Shapefile' -clipsrc {0} {1} {2}".format(" ".join([str(x) for x in extent]), subRegion_name, shp_projected_path))
+                arg_list.append((subRegion_name, fishnet_name, output_list[i*n_sub+j], height_field, resolution, scale, noData, True, suffix_list[i*n_sub+j], extent))
 
         # ------call the conversion function for each sub-regions
         pool = multiprocessing.Pool(processes=num_cpu)
