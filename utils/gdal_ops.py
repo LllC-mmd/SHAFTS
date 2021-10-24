@@ -836,6 +836,8 @@ def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=0.0009, reserve
         city = df.loc[row_id]["City"]
         shp_path = os.path.join(path_prefix, df.loc[row_id]["SHP_Path"])
         srtm_path = os.path.join(path_prefix, df.loc[row_id]["SRTM_Path"])
+        height_field = df.loc[row_id]["BuildingHeightField"]
+        height_unit = df.loc[row_id]["Unit"]
 
         # ------set the target output
         shp_base = os.path.splitext(os.path.basename(shp_path))[0]
@@ -882,7 +884,47 @@ def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=0.0009, reserve
                 shrink_dis = np.sqrt((x_ini - x1_p)**2 + (y_ini - y1_p)**2)
                 shp_df_copy.geometry = shp_df_copy.geometry.buffer(distance=-shrink_dis)
 
+            shp_df_copy.drop(columns=[s for s in shp_df_copy.columns if s not in [height_field, "geometry"]], inplace=True)
+            shp_df_copy["area"] = shp_df_copy["geometry"].area
+
+            if height_unit == "m":
+                scale = 1.0
+            elif height_unit == "cm":
+                scale = 0.01
+            elif height_unit == "FLOOR":
+                scale = 3.0
+            elif height_unit == "feet":
+                scale = 0.3048
+            else:
+                raise NotImplementedError("Unknown unit for {0} Shapefile".format(city))
+            
+            # ------------------in case that height records are strings or None
+            for i in range(0, len(shp_df_copy["geometry"])):
+                ids = shp_df_copy.index[i]
+                v = shp_df_copy.at[ids, height_field]
+                if v is not None:
+                    v = max(float(v), 2.0 / scale)
+                else:
+                    v = 3.0 / scale
+                shp_df_copy.at[ids, height_field] = v
+
             res_df = gtools.sjoin(left_df=shp_union_df, right_df=shp_df_copy, how="inner", op="contains")
+
+            # ------------------in case that multiple parts are merged into one shapes 
+            res_df["h_tmp"] = -1000000.0
+            for i in range(0, len(res_df["geometry"])):
+                ids = res_df.index[i]
+                v = res_df.at[ids, height_field]
+                if not isinstance(v, float):
+                    area = res_df.at[ids, "area"]
+                    h_tmp = np.average([x for x in v], weights=[a for a in area])
+                else:
+                    h_tmp = v
+                res_df.at[ids, "h_tmp"] = h_tmp
+            
+            res_df.drop(columns=[height_field], inplace=True)
+            res_df.rename(columns={"h_tmp": height_field}, inplace=True)
+
             # ---------------aggregate the attributes on the same polygon by averaging
             res_df = res_df.dissolve(by="ids", aggfunc="mean")
             #tmp_ds_path = os.path.join(shp_dir, shp_base + "_tmp_ds.shp")
@@ -998,10 +1040,10 @@ def getHeightFromShape(building_shp, fishnet_shp, output_grid, height_field, res
         for v in val_list:
             # ---------sometimes the type of the specified field could be String
             if v[1] is not None:
-                v[1] = max(float(v[1]), 0.0)
+                v[1] = max(float(v[1])*scale, 2.0)
             else:
                 v[1] = 3.0
-            height_arr[v[0]] += v[1] * v[2] * scale
+            height_arr[v[0]] += v[1] * v[2]
         height_arr = height_arr / (resolution * resolution)
         # ------------if there is no building in the cell, set its value to noData value
         # height_arr[np.isnan(height_arr)] = noData
@@ -1074,8 +1116,8 @@ def getHeightFromShape_option(building_shp, fishnet_shp, output_grid, height_fie
         for v in val_list:
             # ---------sometimes the type of the specified field could be String
             if v[1] is not None:
-                v[1] = max(float(v[1]), 0.0)
-                h_tmp = v[1] * v[2] * scale
+                v[1] = max(float(v[1]) * scale, 2.0)
+                h_tmp = v[1] * v[2]
             else:
                 #v[1] = 0.0
                 h_tmp = 3.0 * v[2]
@@ -1185,7 +1227,35 @@ def GetHeightFromCSV(sample_csv, path_prefix=None, resolution=0.0009, noData=-10
                 shrink_dis = np.sqrt((x_ini - x1_p)**2 + (y_ini - y1_p)**2)
                 shp_df_copy.geometry = shp_df_copy.geometry.buffer(distance=-shrink_dis)
 
+            shp_df_copy.drop(columns=[s for s in shp_df_copy.columns if s not in [height_field, "geometry"]], inplace=True)
+            shp_df_copy["area"] = shp_df_copy["geometry"].area
+
+            # ------------------in case that height records are strings or None
+            for i in range(0, len(shp_df_copy["geometry"])):
+                ids = shp_df_copy.index[i]
+                v = shp_df_copy.at[ids, height_field]
+                if v is not None:
+                    v = max(float(v), 2.0 / scale)
+                else:
+                    v = 3.0 / scale
+                shp_df_copy.at[ids, height_field] = v
+
             res_df = gtools.sjoin(left_df=shp_union_df, right_df=shp_df_copy, how="inner", op="contains")
+
+            # ------------------in case that multiple parts are merged into one shapes 
+            res_df["h_tmp"] = -1000000.0
+            for i in range(0, len(res_df["geometry"])):
+                ids = res_df.index[i]
+                v = res_df.at[ids, height_field]
+                if not isinstance(v, float):
+                    area = res_df.at[ids, "area"]
+                    h_tmp = np.average([x for x in v], weights=[a for a in area])
+                else:
+                    h_tmp = v
+                res_df.at[ids, "h_tmp"] = h_tmp
+            
+            res_df.drop(columns=[height_field], inplace=True)
+            res_df.rename(columns={"h_tmp": height_field}, inplace=True)
 
             # ---------------aggregate the attributes on the same polygon by averaging
             res_df = res_df.dissolve(by="ids", aggfunc="mean")
