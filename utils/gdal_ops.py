@@ -805,7 +805,13 @@ def getFootprintFromShape(building_shp, fishnet_shp, output_grid, resolution=0.0
         footprint_ds = driver.Create(output_grid, num_col, num_row, 1, gdal.GDT_Float64)
         footprint_ds.GetRasterBand(1).WriteArray(footprint_arr)
         footprint_ds.SetGeoTransform([x_min, resolution, 0, y_max, 0, -resolution])
-        footprint_ds.SetProjection(input_proj.ExportToWkt())
+
+        if input_proj is not None:
+            footprint_ds.SetProjection(input_proj.ExportToWkt())
+        else:
+            default_proj = osr.SpatialReference()
+            default_proj.ImportFromEPSG(4326)
+            footprint_ds.SetProjection(default_proj.ExportToWkt())
 
         footprint_ds.FlushCache()
         footprint_ds = None
@@ -859,6 +865,9 @@ def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=0.0009, reserve
             # ---------------create the union of buildings (split all the self-intersected polygons for cleaning)
             shp_df = gpd.read_file(shp_path)
             source_crs = shp_df.crs
+
+            ids_list = [shp_df.index[ids] for ids in range(0, len(shp_df.geometry)) if shp_df.at[shp_df.index[ids], "geometry"] is None]
+            shp_df.drop(ids_list, inplace=True)
 
             shp_union_geom = [g for g in gops.unary_union(shp_df.geometry)]
             shp_union_ids = [ids for ids in range(0, len(shp_union_geom))]
@@ -1055,12 +1064,17 @@ def getHeightFromShape(building_shp, fishnet_shp, output_grid, height_field, res
         height_ds = driver.Create(output_grid, num_col, num_row, 1, gdal.GDT_Float64)
         height_ds.GetRasterBand(1).WriteArray(height_arr)
         height_ds.SetGeoTransform([x_min, resolution, 0, y_max, 0, -resolution])
-        height_ds.SetProjection(input_proj.ExportToWkt())
-        band = height_ds.GetRasterBand(1)
-        band.SetNoDataValue(noData)
+        
+        if input_proj is not None:
+            height_ds.SetProjection(input_proj.ExportToWkt())
+        else:
+            default_proj = osr.SpatialReference()
+            default_proj.ImportFromEPSG(4326)
+            height_ds.SetProjection(default_proj.ExportToWkt())
+        
+        height_ds.GetRasterBand(1).SetNoDataValue(noData)
 
         height_ds.FlushCache()
-        band = None
         height_ds = None
         # ---------if reserve_flag is set to be True, we store intermediate results for further algorithm validation/debug
         if not reserved:
@@ -1084,7 +1098,7 @@ def getHeightFromShape_option(building_shp, fishnet_shp, output_grid, height_fie
     num_row = int(np.ceil(round(y_max - y_min, 6) / resolution))
     num_col = int(np.ceil(round(x_max - x_min, 6) / resolution))
 
-    if num_col * num_row != 0:
+    if num_col * num_row != 0 and shp_layer is not None:
         # ------create FishNet layer for building Shapefile
         # createFishNet(input_shp=building_shp, output_grid=fishnet_name, height=resolution, width=resolution, extent=extent)
 
@@ -1133,12 +1147,17 @@ def getHeightFromShape_option(building_shp, fishnet_shp, output_grid, height_fie
         height_ds = driver.Create(output_grid, num_col, num_row, 1, gdal.GDT_Float64)
         height_ds.GetRasterBand(1).WriteArray(height_arr)
         height_ds.SetGeoTransform([x_min, resolution, 0, y_max, 0, -resolution])
-        height_ds.SetProjection(input_proj.ExportToWkt())
-        band = height_ds.GetRasterBand(1)
-        band.SetNoDataValue(noData)
+
+        if input_proj is not None:
+            height_ds.SetProjection(input_proj.ExportToWkt())
+        else:
+            default_proj = osr.SpatialReference()
+            default_proj.ImportFromEPSG(4326)
+            height_ds.SetProjection(default_proj.ExportToWkt())
+
+        height_ds.GetRasterBand(1).SetNoDataValue(noData)
 
         height_ds.FlushCache()
-        band = None
         height_ds = None
 
         # ---------if reserve_flag is set to be True, we store intermediate results for further algorithm validation/debug
@@ -1201,6 +1220,9 @@ def GetHeightFromCSV(sample_csv, path_prefix=None, resolution=0.0009, noData=-10
             # ---------------create the union of buildings (split all the self-intersected polygons for cleaning)
             shp_df = gpd.read_file(shp_path)
             source_crs = shp_df.crs
+
+            ids_list = [shp_df.index[ids] for ids in range(0, len(shp_df.geometry)) if shp_df.at[shp_df.index[ids], "geometry"] is None]
+            shp_df.drop(ids_list, inplace=True)
 
             shp_union_geom = [g for g in gops.unary_union(shp_df.geometry)]
             shp_union_ids = [ids for ids in range(0, len(shp_union_geom))]
