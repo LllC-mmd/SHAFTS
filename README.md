@@ -56,7 +56,7 @@ For DL models, we select ResNet, SENet and CBAM as backbones and further compare
 
 Pretrained ML models for building height and footprint prediction can be downloaded from this [link](https://drive.google.com/drive/folders/1YdK3DCDVcsCdUv2A0Pf6lMTl3q6yZTJD?usp=sharing) on Google Drive.
 
-Pretrained DL models for building height and footprint prediction can be downloaded from this [link](https://drive.google.com/drive/folders/1s7c3GxJfLdQ_QICtSbkStSX_3cIHD6Al?usp=sharing) on Google Drive.
+Pretrained DL models for building height and footprint prediction can be downloaded from this [link](https://drive.google.com/drive/folders/19FNXK6N3-nWfHJZPgUOyltdhBIdJlLLo?usp=sharing) on Google Drive.
 
 Mapping results of Glasgow, Chicago and Beijing be downloaded from this [link](https://drive.google.com/drive/folders/1b7VH8jMa2kiLdR2rt-2voHIK8aNc6giO?usp=sharing) on Google Drive.
 
