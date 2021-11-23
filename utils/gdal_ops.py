@@ -686,8 +686,28 @@ def BatchReprojectShapefile(shp_dir, target_epsg=4326):
         os.system("ogr2ogr -f 'ESRI Shapefile' -t_srs 'EPSG:{0}' {1} {2}".format(target_epsg, new_path, shp_path))
 
 
+def BatchConvertShapefile(sample_csv, path_prefix=None, target_ext="gpkg"):
+    df = pd.read_csv(sample_csv)
+
+    for row_id in df.index:
+        shp_path = os.path.join(path_prefix, df.loc[row_id]["SHP_Path"])
+        shp_dir = os.path.dirname(shp_path)
+        shp_base = os.path.splitext(os.path.basename(shp_path))[0]
+        
+        if target_ext == "shp":
+            target_driver = "ESRI Shapefile"
+        elif target_ext == "gpkg":
+            target_driver = "GPKG"
+        else:
+            raise NotImplementedError("Unknown vector format")
+
+        target_path = os.path.join(shp_dir, shp_base + "." + target_ext)
+        
+        os.system("ogr2ogr -f '{0}' {1} {2}".format(target_driver, target_path, shp_path))
+
+
 # ************************* Functional Scripts *************************
-def createFishNet(input_shp, output_grid, height, width, driver_name="ESRI Shapefile", extent=None):
+def createFishNet(input_shp, output_grid, height, width, driver_name="ESRI Shapefile", extent=None, identifier="NID"):
     # ------open and read Shapefile
     driver = ogr.GetDriverByName(driver_name)
     shp_ds = driver.Open(input_shp, 1)
@@ -716,7 +736,15 @@ def createFishNet(input_shp, output_grid, height, width, driver_name="ESRI Shape
     if os.path.exists(output_grid):
         os.remove(output_grid)
     out_ds = out_driver.CreateDataSource(output_grid)
-    out_layer = out_ds.CreateLayer(output_grid, geom_type=ogr.wkbPolygon)
+
+    if driver_name == "ESRI Shapefile":
+        layer_name = output_grid
+    else:
+        layer_name = "l"
+
+    out_layer = out_ds.CreateLayer(layer_name, geom_type=ogr.wkbPolygon)
+    idField = ogr.FieldDefn(identifier, ogr.OFTInteger)
+    out_layer.CreateField(idField)
     feature_def = out_layer.GetLayerDefn()
     # ---------set output projection same as the input projection by default
     #output_proj = input_proj
@@ -727,6 +755,7 @@ def createFishNet(input_shp, output_grid, height, width, driver_name="ESRI Shape
         y_top = fishnet_Y_top[i]
         y_bottom = fishnet_Y_bottom[i]
         for j in range(0, num_col):
+            fid = i * num_col + j
             x_left = fishnet_X_left[j]
             x_right = fishnet_X_right[j]
             ring = ogr.Geometry(ogr.wkbLinearRing)
@@ -741,6 +770,7 @@ def createFishNet(input_shp, output_grid, height, width, driver_name="ESRI Shape
             # ---------add new geometry to layer
             out_feature = ogr.Feature(feature_def)
             out_feature.SetGeometry(poly)
+            out_feature.SetField(identifier, int(fid))
             out_layer.CreateFeature(out_feature)
             out_feature.Destroy()
 
@@ -755,9 +785,10 @@ def createFishNet(input_shp, output_grid, height, width, driver_name="ESRI Shape
 
 
 # ************************* [1] Building Footprint *************************
-def getFootprintFromShape(building_shp, fishnet_shp, output_grid, resolution=0.0009, scale=1.0, reserved=False, suffix=None, extent=None):
+def getFootprintFromShape(building_shp, fishnet_shp, output_grid, resolution=0.0009, scale=1.0, reserved=False, suffix=None, extent=None, shp_ext="shp", shp_driver="ESRI Shapefile", identifier="NID"):
     buiding_dir = os.path.dirname(building_shp)
     # fishnet_name = os.path.join(buiding_dir, "_fishnet_{0}.shp".format(suffix))
+    pid = output_grid[-6:-4]
 
     shp_ds = ogr.Open(building_shp)
     shp_layer = shp_ds.GetLayer()
@@ -776,18 +807,18 @@ def getFootprintFromShape(building_shp, fishnet_shp, output_grid, resolution=0.0
         fishnet_ds = ogr.Open(fishnet_shp)
         fishnet_layer = fishnet_ds.GetLayer()
 
-        intersect_driver = ogr.GetDriverByName("ESRI Shapefile")
-        intersect_path = os.path.join(buiding_dir, "_intersect_{0}.shp".format(suffix))
+        intersect_driver = ogr.GetDriverByName(shp_driver)
+        intersect_path = os.path.join(buiding_dir, "_intersect_{0}.{1}".format(suffix, shp_ext))
         if os.path.exists(intersect_path):
             os.remove(intersect_path)
         intersect_ds = intersect_driver.CreateDataSource(intersect_path)
-        intersect_layer = intersect_ds.CreateLayer(output_grid, geom_type=ogr.wkbMultiPolygon)
+        intersect_layer = intersect_ds.CreateLayer(pid, geom_type=ogr.wkbMultiPolygon)
 
         shp_layer.Intersection(fishnet_layer, intersect_layer, ["METHOD_PREFIX=FN_"])
 
         # ------calculate the average height of each cell in FishNet layer
         # ---------height value is weighted by the area of each part
-        val_list = [[feature.GetField("FN_FID"), feature.GetGeometryRef().GetArea()] for feature in intersect_layer]
+        val_list = [[feature.GetField("FN_{0}".format(identifier)), feature.GetGeometryRef().GetArea()] for feature in intersect_layer]
         
         if extent is not None:
             x_min, y_min, x_max, y_max = extent
@@ -826,7 +857,7 @@ def getFootprintFromShape(building_shp, fishnet_shp, output_grid, resolution=0.0
     return res
 
 
-def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=0.0009, reserved=False, num_cpu=1, shrink_deg=1e-6):
+def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=0.0009, reserved=False, num_cpu=1, shrink_deg=1e-6, identifier="NID"):
     # ------get basic settings for parallel computing
     num_cpu_available = multiprocessing.cpu_count()
     if num_cpu_available < num_cpu:
@@ -847,6 +878,14 @@ def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=0.0009, reserve
 
         # ------set the target output
         shp_base = os.path.splitext(os.path.basename(shp_path))[0]
+        shp_ext = os.path.splitext(os.path.basename(shp_path))[1][1:]
+        if shp_ext == "shp":
+            shp_driver = "ESRI Shapefile"
+        elif shp_ext == "gpkg":
+            shp_driver = "GPKG"
+        else:
+            raise NotImplementedError("Unknown vector format")
+
         shp_dir = os.path.dirname(shp_path)
         tiff_path = os.path.join(shp_dir, shp_base + "_building_footprint.tif")
 
@@ -859,7 +898,7 @@ def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=0.0009, reserve
         else:
             srtm_epsg = 4326
         # ---------reproject the Shapefile if not exists
-        shp_projected_path = os.path.join(shp_dir, shp_base + "_projected_{0}.shp".format(srtm_epsg))
+        shp_projected_path = os.path.join(shp_dir, shp_base + "_projected_{0}.{1}".format(srtm_epsg, shp_ext))
         if not os.path.exists(shp_projected_path):
             # ------------simplify building layers (some buildings would be stacked)
             # ---------------create the union of buildings (split all the self-intersected polygons for cleaning)
@@ -876,9 +915,7 @@ def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=0.0009, reserve
                 shp_union_df.set_crs(crs=source_crs, inplace=True)
             else:
                 shp_union_df.to_crs(crs=source_crs, inplace=True)
-            
-            #tmp_un_path = os.path.join(shp_dir, shp_base + "_union_tmp.shp")
-            #shp_union_df.to_file(tmp_un_path)
+
             # ---------------use the spatial join to attach original attributes to cleaned polygons
             shp_df_copy = shp_df.copy()
             # ------------------shrink the original polygons for strict 'within' identification
@@ -924,7 +961,7 @@ def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=0.0009, reserve
             for i in range(0, len(res_df["geometry"])):
                 ids = res_df.index[i]
                 v = res_df.at[ids, height_field]
-                if not isinstance(v, float):
+                if not isinstance(v, (int, float, np.integer)):
                     area = res_df.at[ids, "area"]
                     h_tmp = np.average([x for x in v], weights=[a for a in area])
                 else:
@@ -936,11 +973,9 @@ def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=0.0009, reserve
 
             # ---------------aggregate the attributes on the same polygon by averaging
             res_df = res_df.dissolve(by="ids", aggfunc="mean")
-            #tmp_ds_path = os.path.join(shp_dir, shp_base + "_tmp_ds.shp")
-            #res_df.to_file(tmp_ds_path)
 
-            tmp_path = os.path.join(shp_dir, shp_base + "_temp.shp")
-            res_df.to_file(tmp_path)
+            tmp_path = os.path.join(shp_dir, shp_base + "_temp.{0}".format(shp_ext))
+            res_df.to_file(tmp_path, driver=shp_driver)
 
             os.system("ogr2ogr {0} -t_srs 'EPSG:{1}' {2}".format(shp_projected_path, srtm_epsg, tmp_path))
             
@@ -954,10 +989,10 @@ def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=0.0009, reserve
 
         row_id_ref = np.array_split(np.arange(num_row, dtype=int), n_sub)
         col_id_ref = np.array_split(np.arange(num_col, dtype=int), n_sub)
-        x_min_list = np.array([x_min + row_id_ref[i][0]*resolution for i in range(0, n_sub)])
-        x_max_list = np.array([x_min + (row_id_ref[i][-1]+1)*resolution for i in range(0, n_sub)])
-        y_min_list = np.array([y_min + col_id_ref[i][0]*resolution for i in range(0, n_sub)])
-        y_max_list = np.array([y_min + (col_id_ref[i][-1]+1)*resolution for i in range(0, n_sub)])
+        x_min_list = np.array([x_min + col_id_ref[i][0]*resolution for i in range(0, n_sub)])
+        x_max_list = np.array([x_min + (col_id_ref[i][-1]+1)*resolution for i in range(0, n_sub)])
+        y_min_list = np.array([y_min + row_id_ref[i][0]*resolution for i in range(0, n_sub)])
+        y_max_list = np.array([y_min + (row_id_ref[i][-1]+1)*resolution for i in range(0, n_sub)])
 
         '''
         dx = (x_max - x_min) / n_sub
@@ -968,7 +1003,7 @@ def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=0.0009, reserve
         y_max_list = y_min_list + dy
         '''
 
-        subRegion_list = [os.path.join(shp_dir, shp_base + "_projected_{0}_temp_{1}.shp".format(srtm_epsg, str(i)+str(j))) for i in range(0, n_sub) for j in range(0, n_sub)]
+        subRegion_list = [os.path.join(shp_dir, shp_base + "_projected_{0}_temp_{1}.{2}".format(srtm_epsg, str(i)+str(j), shp_ext)) for i in range(0, n_sub) for j in range(0, n_sub)]
         output_list = [os.path.join(shp_dir, shp_base + "_building_footprint_temp_{0}.tif".format(str(i)+str(j))) for i in range(0, n_sub) for j in range(0, n_sub)]
         suffix_list = [str(i)+str(j) for i in range(0, n_sub) for j in range(0, n_sub)]
 
@@ -979,13 +1014,13 @@ def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=0.0009, reserve
                 subRegion_name = subRegion_list[i*n_sub+j]
                 suffix = suffix_list[i*n_sub+j]
                 # ------create FishNet layer for building Shapefile
-                fishnet_name = os.path.join(shp_dir, "_fishnet_{0}.shp".format(suffix))
-                createFishNet(input_shp=shp_projected_path, output_grid=fishnet_name, height=resolution, width=resolution, extent=extent)
+                fishnet_name = os.path.join(shp_dir, "_fishnet_{0}.{1}".format(suffix, shp_ext))
+                createFishNet(input_shp=shp_projected_path, output_grid=fishnet_name, height=resolution, width=resolution, driver_name=shp_driver, extent=extent, identifier=identifier)
                 # -----------some sub-region might be empty because no building is present in those grids
                 # -----------also, the bounding box would be narrowed automatically until it contains all of buildings
                 # -----------considering, we must specify the extent of our fishnet layer manually
-                os.system("ogr2ogr -f 'ESRI Shapefile' -clipsrc {0} {1} {2}".format(" ".join([str(x) for x in extent]), subRegion_name, shp_projected_path))
-                arg_list.append((subRegion_name, fishnet_name, output_list[i*n_sub+j], resolution, 1.0, True, suffix, extent))
+                os.system("ogr2ogr -f '{0}' -clipsrc {1} {2} {3}".format(shp_driver, " ".join([str(x) for x in extent]), subRegion_name, shp_projected_path))
+                arg_list.append((subRegion_name, fishnet_name, output_list[i*n_sub+j], resolution, 1.0, True, suffix, extent, shp_ext, shp_driver))
 
         # ------call the conversion function for each sub-regions
         pool = multiprocessing.Pool(processes=num_cpu)
@@ -1005,9 +1040,10 @@ def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=0.0009, reserve
 
 
 # ************************* [2] Building Height *************************
-def getHeightFromShape(building_shp, fishnet_shp, output_grid, height_field, resolution=100.0, scale=1.0, noData=-1000000.0, reserved=False, suffix=None, extent=None):
+def getHeightFromShape(building_shp, fishnet_shp, output_grid, height_field, resolution=100.0, scale=1.0, noData=-1000000.0, reserved=False, suffix=None, extent=None, shp_ext="shp", shp_driver="ESRI Shapefile", identifier="NID"):
     buiding_dir = os.path.dirname(building_shp)
     # fishnet_name = os.path.join(buiding_dir, "_fishnet_{0}.shp".format(suffix))
+    pid = output_grid[-6:-4]
 
     shp_ds = ogr.Open(building_shp)
     shp_layer = shp_ds.GetLayer()
@@ -1026,18 +1062,18 @@ def getHeightFromShape(building_shp, fishnet_shp, output_grid, height_field, res
         fishnet_ds = ogr.Open(fishnet_shp)
         fishnet_layer = fishnet_ds.GetLayer()
 
-        intersect_driver = ogr.GetDriverByName("ESRI Shapefile")
-        intersect_path = os.path.join(buiding_dir, "_intersect_{0}.shp".format(suffix))
+        intersect_driver = ogr.GetDriverByName(shp_driver)
+        intersect_path = os.path.join(buiding_dir, "_intersect_{0}.{1}".format(suffix, shp_ext))
         if os.path.exists(intersect_path):
             os.remove(intersect_path)
         intersect_ds = intersect_driver.CreateDataSource(intersect_path)
-        intersect_layer = intersect_ds.CreateLayer(output_grid, geom_type=ogr.wkbPolygon)
+        intersect_layer = intersect_ds.CreateLayer(pid, geom_type=ogr.wkbMultiPolygon)
 
         shp_layer.Intersection(fishnet_layer, intersect_layer, ["METHOD_PREFIX=FN_"])
 
         # ------calculate the average height of each cell in FishNet layer
         # ---------height value is weighted by the area of each part
-        val_list = [[feature.GetField("FN_FID"), feature.GetField(height_field), feature.GetGeometryRef().GetArea()] for feature in intersect_layer]
+        val_list = [[feature.GetField("FN_{0}".format(identifier)), feature.GetField(height_field), feature.GetGeometryRef().GetArea()] for feature in intersect_layer]
 
         if extent is not None:
             x_min, y_min, x_max, y_max = extent
@@ -1086,9 +1122,10 @@ def getHeightFromShape(building_shp, fishnet_shp, output_grid, height_field, res
     return res
 
 
-def getHeightFromShape_option(building_shp, fishnet_shp, output_grid, height_field, resolution=0.0009, scale=1.0, noData=-1000000.0, reserved=False, suffix=None, extent=None):
+def getHeightFromShape_option(building_shp, fishnet_shp, output_grid, height_field, resolution=0.0009, scale=1.0, noData=-1000000.0, reserved=False, suffix=None, extent=None, shp_ext="shp", shp_driver="ESRI Shapefile", identifier="NID"):
     buiding_dir = os.path.dirname(building_shp)
     # fishnet_name = os.path.join(buiding_dir, "_fishnet_{0}.shp".format(suffix))
+    pid = output_grid[-6:-4]
 
     shp_ds = ogr.Open(building_shp)
     shp_layer = shp_ds.GetLayer()
@@ -1107,18 +1144,18 @@ def getHeightFromShape_option(building_shp, fishnet_shp, output_grid, height_fie
         fishnet_ds = ogr.Open(fishnet_shp)
         fishnet_layer = fishnet_ds.GetLayer()
 
-        intersect_driver = ogr.GetDriverByName("ESRI Shapefile")
-        intersect_path = os.path.join(buiding_dir, "_intersect_{0}.shp".format(suffix))
+        intersect_driver = ogr.GetDriverByName(shp_driver)
+        intersect_path = os.path.join(buiding_dir, "_intersect_{0}.{1}".format(suffix, shp_ext))
         if os.path.exists(intersect_path):
             os.remove(intersect_path)
         intersect_ds = intersect_driver.CreateDataSource(intersect_path)
-        intersect_layer = intersect_ds.CreateLayer(output_grid, geom_type=ogr.wkbPolygon)
+        intersect_layer = intersect_ds.CreateLayer(pid, geom_type=ogr.wkbMultiPolygon)
 
         shp_layer.Intersection(fishnet_layer, intersect_layer, ["METHOD_PREFIX=FN_"])
 
         # ------calculate the average height of each cell in FishNet layer
         # ---------height value is weighted by the area of each part
-        val_list = [[feature.GetField("FN_FID"), feature.GetField(height_field), feature.GetGeometryRef().GetArea()] for feature in intersect_layer]
+        val_list = [[feature.GetField("FN_{0}".format(identifier)), feature.GetField(height_field), feature.GetGeometryRef().GetArea()] for feature in intersect_layer]
 
         if extent is not None:
             x_min, y_min, x_max, y_max = extent
@@ -1170,7 +1207,7 @@ def getHeightFromShape_option(building_shp, fishnet_shp, output_grid, height_fie
     return res
 
 
-def GetHeightFromCSV(sample_csv, path_prefix=None, resolution=0.0009, noData=-1000000.0, reserved=False, num_cpu=1, option=False, shrink_deg=1e-6):
+def GetHeightFromCSV(sample_csv, path_prefix=None, resolution=0.0009, noData=-1000000.0, reserved=False, num_cpu=1, option=False, shrink_deg=1e-6, identifier="NID"):
     # ------get basic settings for parallel computing
     num_cpu_available = multiprocessing.cpu_count()
     if num_cpu_available < num_cpu:
@@ -1191,6 +1228,14 @@ def GetHeightFromCSV(sample_csv, path_prefix=None, resolution=0.0009, noData=-10
 
         # ------set the target output
         shp_base = os.path.splitext(os.path.basename(shp_path))[0]
+        shp_ext = os.path.splitext(os.path.basename(shp_path))[1][1:]
+        if shp_ext == "shp":
+            shp_driver = "ESRI Shapefile"
+        elif shp_ext == "gpkg":
+            shp_driver = "GPKG"
+        else:
+            raise NotImplementedError("Unknown vector format")
+
         shp_dir = os.path.dirname(shp_path)
         tiff_path = os.path.join(shp_dir, shp_base + "_building_height.tif")
 
@@ -1214,7 +1259,7 @@ def GetHeightFromCSV(sample_csv, path_prefix=None, resolution=0.0009, noData=-10
         else:
             srtm_epsg = 4326
         # ---------reproject the Shapefile if not exists
-        shp_projected_path = os.path.join(shp_dir, shp_base + "_projected_{0}.shp".format(srtm_epsg))
+        shp_projected_path = os.path.join(shp_dir, shp_base + "_projected_{0}.{1}".format(srtm_epsg, shp_ext))
         if not os.path.exists(shp_projected_path):
            # ------------simplify building layers (some buildings would be stacked)
             # ---------------create the union of buildings (split all the self-intersected polygons for cleaning)
@@ -1231,9 +1276,7 @@ def GetHeightFromCSV(sample_csv, path_prefix=None, resolution=0.0009, noData=-10
                 shp_union_df.set_crs(crs=source_crs, inplace=True)
             else:
                 shp_union_df.to_crs(crs=source_crs, inplace=True)
-            
-            #tmp_un_path = os.path.join(shp_dir, shp_base + "_union_tmp.shp")
-            #shp_union_df.to_file(tmp_un_path)
+
             # ---------------use the spatial join to attach original attributes to cleaned polygons
             shp_df_copy = shp_df.copy()
             # ------------------shrink the original polygons for strict 'within' identification
@@ -1269,7 +1312,7 @@ def GetHeightFromCSV(sample_csv, path_prefix=None, resolution=0.0009, noData=-10
             for i in range(0, len(res_df["geometry"])):
                 ids = res_df.index[i]
                 v = res_df.at[ids, height_field]
-                if not isinstance(v, float):
+                if not isinstance(v, (int, float, np.integer)):
                     area = res_df.at[ids, "area"]
                     h_tmp = np.average([x for x in v], weights=[a for a in area])
                 else:
@@ -1281,11 +1324,9 @@ def GetHeightFromCSV(sample_csv, path_prefix=None, resolution=0.0009, noData=-10
 
             # ---------------aggregate the attributes on the same polygon by averaging
             res_df = res_df.dissolve(by="ids", aggfunc="mean")
-            #tmp_ds_path = os.path.join(shp_dir, shp_base + "_tmp_ds.shp")
-            #res_df.to_file(tmp_ds_path)
 
-            tmp_path = os.path.join(shp_dir, shp_base + "_temp.shp")
-            res_df.to_file(tmp_path)
+            tmp_path = os.path.join(shp_dir, shp_base + "_temp.{0}".format(shp_ext))
+            res_df.to_file(tmp_path, driver=shp_driver)
 
             os.system("ogr2ogr {0} -t_srs 'EPSG:{1}' -select '{2}' {3}".format(shp_projected_path, srtm_epsg, height_field, tmp_path))
 
@@ -1299,10 +1340,10 @@ def GetHeightFromCSV(sample_csv, path_prefix=None, resolution=0.0009, noData=-10
 
         row_id_ref = np.array_split(np.arange(num_row, dtype=int), n_sub)
         col_id_ref = np.array_split(np.arange(num_col, dtype=int), n_sub)
-        x_min_list = np.array([x_min + row_id_ref[i][0]*resolution for i in range(0, n_sub)])
-        x_max_list = np.array([x_min + (row_id_ref[i][-1]+1)*resolution for i in range(0, n_sub)])
-        y_min_list = np.array([y_min + col_id_ref[i][0]*resolution for i in range(0, n_sub)])
-        y_max_list = np.array([y_min + (col_id_ref[i][-1]+1)*resolution for i in range(0, n_sub)])
+        x_min_list = np.array([x_min + col_id_ref[i][0]*resolution for i in range(0, n_sub)])
+        x_max_list = np.array([x_min + (col_id_ref[i][-1]+1)*resolution for i in range(0, n_sub)])
+        y_min_list = np.array([y_min + row_id_ref[i][0]*resolution for i in range(0, n_sub)])
+        y_max_list = np.array([y_min + (row_id_ref[i][-1]+1)*resolution for i in range(0, n_sub)])
 
         '''
         dx = (x_max - x_min) / n_sub
@@ -1313,7 +1354,7 @@ def GetHeightFromCSV(sample_csv, path_prefix=None, resolution=0.0009, noData=-10
         y_max_list = y_min_list + dy
         '''
 
-        subRegion_list = [os.path.join(shp_dir, shp_base + "_projected_{0}_temp_{1}.shp".format(srtm_epsg, str(i)+str(j))) for i in range(0, n_sub) for j in range(0, n_sub)]
+        subRegion_list = [os.path.join(shp_dir, shp_base + "_projected_{0}_temp_{1}.{2}".format(srtm_epsg, str(i)+str(j), shp_ext)) for i in range(0, n_sub) for j in range(0, n_sub)]
         output_list = [os.path.join(shp_dir, shp_base + "_building_height_temp_{0}.tif".format(str(i)+str(j))) for i in range(0, n_sub) for j in range(0, n_sub)]
         suffix_list = [str(i)+str(j) for i in range(0, n_sub) for j in range(0, n_sub)]
 
@@ -1324,13 +1365,13 @@ def GetHeightFromCSV(sample_csv, path_prefix=None, resolution=0.0009, noData=-10
                 subRegion_name = subRegion_list[i*n_sub+j]
                 suffix = suffix_list[i*n_sub+j]
                 # ------create FishNet layer for building Shapefile
-                fishnet_name = os.path.join(shp_dir, "_fishnet_{0}.shp".format(suffix))
-                createFishNet(input_shp=shp_projected_path, output_grid=fishnet_name, height=resolution, width=resolution, extent=extent)
+                fishnet_name = os.path.join(shp_dir, "_fishnet_{0}.{1}".format(suffix, shp_ext))
+                createFishNet(input_shp=shp_projected_path, output_grid=fishnet_name, height=resolution, width=resolution, driver_name=shp_driver, extent=extent, identifier=identifier)
                 # -----------some sub-region might be empty because no building is present in those grids
                 # -----------also, the bounding box would be narrowed automatically until it contains all of buildings
                 # -----------considering, we must specify the extent of our fishnet layer manually
-                os.system("ogr2ogr -f 'ESRI Shapefile' -clipsrc {0} {1} {2}".format(" ".join([str(x) for x in extent]), subRegion_name, shp_projected_path))
-                arg_list.append((subRegion_name, fishnet_name, output_list[i*n_sub+j], height_field, resolution, scale, noData, True, suffix_list[i*n_sub+j], extent))
+                os.system("ogr2ogr -f '{0}' -clipsrc {1} {2} {3}".format(shp_driver, " ".join([str(x) for x in extent]), subRegion_name, shp_projected_path))
+                arg_list.append((subRegion_name, fishnet_name, output_list[i*n_sub+j], height_field, resolution, scale, noData, True, suffix_list[i*n_sub+j], extent, shp_ext, shp_driver))
 
         # ------call the conversion function for each sub-regions
         pool = multiprocessing.Pool(processes=num_cpu)
@@ -1356,28 +1397,30 @@ def GetHeightFromCSV(sample_csv, path_prefix=None, resolution=0.0009, noData=-10
 
 if __name__ == "__main__":
     lyy_prefix = "/data/lyy/BuildingProject/ReferenceData"
-    csv_name = "HeightGen.csv"
+    csv_name = "HeightGen_2022.csv"
+
+    BatchConvertShapefile(csv_name, path_prefix=lyy_prefix, target_ext="gpkg")
     # ---height, 30m
     # GetHeightFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.00027, noData=-1000000.0, reserved=False, num_cpu=25, option=True)
     # ---height, 100m
-    #GetHeightFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.0009, noData=-1000000.0, reserved=False, num_cpu=4, option=True)
+    #GetHeightFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.0009, noData=-1000000.0, reserved=False, num_cpu=36, option=True)
     # ---height, 250m
-    #GetHeightFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.00225, noData=-1000000.0, reserved=False, num_cpu=4, option=True)
+    #GetHeightFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.00225, noData=-1000000.0, reserved=False, num_cpu=25, option=True)
     # ---height, 500m
-    #GetHeightFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.0045, noData=-1000000.0, reserved=False, num_cpu=4, option=True)
+    #GetHeightFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.0045, noData=-1000000.0, reserved=False, num_cpu=25, option=True)
     # ---height, 1000m
-    #GetHeightFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.009, noData=-1000000.0, reserved=False, num_cpu=4, option=True)
+    #GetHeightFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.009, noData=-1000000.0, reserved=False, num_cpu=25, option=True)
 
     # ---footprint, 30m
     # GetFootprintFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.00027, reserved=False, num_cpu=25)
     # ---footprint, 100m
-    # GetFootprintFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.0009, reserved=False, num_cpu=4)
+    #GetFootprintFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.0009, reserved=False, num_cpu=36)
     # ---footprint, 250m
-    #GetFootprintFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.00225, reserved=False, num_cpu=4)
+    #GetFootprintFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.00225, reserved=False, num_cpu=25)
     # ---footprint, 500m
-    #GetFootprintFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.0045, reserved=False, num_cpu=4)
+    #GetFootprintFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.0045, reserved=False, num_cpu=25)
     # ---footprint, 1000m
-    #GetFootprintFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.009, reserved=False, num_cpu=4)
+    #GetFootprintFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.009, reserved=False, num_cpu=25)
 
     '''
     # ------set data mask using Global Urban Footprint (GUF)
@@ -1401,7 +1444,7 @@ if __name__ == "__main__":
                                     noData=nodata_mapping[var], masked_value=0, masked_threshold=0.8, num_cpu=25)
     '''
 
-
+    '''
     # ------calculate the minimum foortprint for urban area identification based on percolation theory
     h_test = np.linspace(2.0, 20.0, 901)
     d_test = np.linspace(0.01, 0.9, 891)
@@ -1419,6 +1462,7 @@ if __name__ == "__main__":
             footprint_file = os.path.join(res_prefix, "Glasgow_footprint_{0}.tif".format(model))
             calc_percolation_thresold_single(height_file=height_file, footprint_file=footprint_file, density_test=d_test, h_min=5.0,
                                              num_cpu=10, save_path="cc_{0}_{1}.npy".format(model, resolution))
+    '''
 
     '''
     # ------Glasgow close-ups
