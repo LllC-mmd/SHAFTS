@@ -31,7 +31,7 @@ setup(
     ),
     author_email=", ".join(
         [
-            "lrd19@mails.tsinghua.edu.cn"
+            "lrd19@mails.tsinghua.edu.cn",
             "ting.sun@reading.ac.uk",
             "ghni@tsinghua.edu.cn",
         ]
