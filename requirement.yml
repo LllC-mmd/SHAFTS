@@ -3,7 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - python=3.7
-  - gdal=2.3.*
+  - gdal=3.0.*
   - pytorch=1.8.*
   - torchvision=0.9.*
   - albumentations=0.5.*
