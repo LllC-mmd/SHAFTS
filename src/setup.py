@@ -2,7 +2,7 @@ from setuptools import setup
 import pandas as pd
 
 
-ser_ver = pd.read_json("./src/shaft_version.json", typ="series", convert_dates=False)
+ser_ver = pd.read_json("./shaft/shaft_version.json", typ="series", convert_dates=False)
 print(ser_ver)
 __version__ = f"{ser_ver.ver_milestone}.{ser_ver.ver_major}.{ser_ver.ver_minor}{ser_ver.ver_remark}"
 
