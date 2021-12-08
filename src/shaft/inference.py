@@ -1,3 +1,7 @@
+import glob
+
+from torch import cuda
+
 from train import *
 from dataset import *
 from DL_train import *
@@ -8,7 +12,7 @@ import albumentations as album
 clahe_transform = album.CLAHE(p=1.0)
 
 
-def check_extent(tif_ref, x_min, y_min, x_max, y_max, padding):
+def check_extent(base_dir, tif_ref, x_min, y_min, x_max, y_max, padding):
     x_min_list = []
     y_min_list = []
     x_max_list = []
@@ -23,7 +27,8 @@ def check_extent(tif_ref, x_min, y_min, x_max, y_max, padding):
             s1_input = tif_ref[aggregate_key][s1_key]
 
         test_s1_tif = os.path.join(base_dir, "TEMP_S1.tif")
-        os.system("gdalwarp {0} {1}".format(" ".join(s1_input), test_s1_tif))
+        # os.system("gdalwarp {0} {1}".format(" ".join(s1_input), test_s1_tif))
+        gdal.Warp(destNameOrDestDS=test_s1_tif, srcDSOrSrcDSTab=s1_input)
 
         s1_ds = gdal.Open(test_s1_tif)
         s1_x_min, s1_dx, _, s1_y_max, _, s1_dy = s1_ds.GetGeoTransform()
@@ -36,7 +41,8 @@ def check_extent(tif_ref, x_min, y_min, x_max, y_max, padding):
             s2_input = tif_ref[aggregate_key][s2_key]
 
         test_s2_tif = os.path.join(base_dir, "TEMP_S2.tif")
-        os.system("gdalwarp {0} {1}".format(" ".join(s2_input), test_s2_tif))
+        # os.system("gdalwarp {0} {1}".format(" ".join(s2_input), test_s2_tif))
+        gdal.Warp(destNameOrDestDS=test_s2_tif, srcDSOrSrcDSTab=s2_input)
 
         s2_ds = gdal.Open(test_s2_tif)
         s2_x_min, s2_dx, _, s2_y_max, _, s2_dy = s2_ds.GetGeoTransform()
@@ -411,7 +417,8 @@ def pred_height_from_tiff_VVH(x_min, y_min, x_max, y_max, out_file, tif_ref, pat
             s1_input = tif_ref[aggregate_key][s1_key]
 
         s1_input_tif = os.path.join(base_dir, "@".join([aggregate_key, s1_key, "TEMP"]) + ".tif")
-        os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s1_input), s1_input_tif))
+        # os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s1_input), s1_input_tif))
+        gdal.Warp(destNameOrDestDS=s1_input_tif, srcDSOrSrcDSTab=s1_input, options=gdal.WarpOptions(outputBounds=target_extent))
         tif_input[aggregate_key][s1_key] = s1_input_tif
 
     # ---------[1] calculate the coordinates of center points of patches where the building height is to be predicted
@@ -465,7 +472,10 @@ def pred_height_from_tiff_VVH(x_min, y_min, x_max, y_max, out_file, tif_ref, pat
             band_file_sorted = sorted(band_file, key=lambda x: (int(re.findall(r"TEMP_(\d+)@", x)[0]), int(re.findall(r"_chunk(\d+).npy", x)[0])))
             city_db.create_dataset(band, data=np.concatenate([np.load(f) for f in band_file_sorted]))
 
-    os.system("rm -rf {0}".format(os.path.join(base_dir, "*TEMP*.npy")))
+    # os.system("rm -rf {0}".format(os.path.join(base_dir, "*TEMP*.npy")))
+    tmp_list = glob.glob(os.path.join(base_dir, "*TEMP*.npy"))
+    for f in tmp_list:
+        os.remove(f)
 
     # ---------[3] calculate the feature of each patch and then do some preprocessing with it
     feature = get_backscatterCoef_from_dataset(hf_db_path, list(tif_input.keys())[0], gamma=gamma, s1_prefix=s1_key,
@@ -497,7 +507,10 @@ def pred_height_from_tiff_VVH(x_min, y_min, x_max, y_max, out_file, tif_ref, pat
     height_ds.FlushCache()
     height_ds = None
 
-    os.system("rm -rf {0}".format(os.path.join(base_dir, "*TEMP*")))
+    # os.system("rm -rf {0}".format(os.path.join(base_dir, "*TEMP*")))
+    tmp_list = glob.glob(os.path.join(base_dir, "*TEMP*"))
+    for f in tmp_list:
+        os.remove(f)
 
 
 def pred_height_from_tiff_ML(x_min, y_min, x_max, y_max, out_file, tif_ref, patch_size, predictor, resolution,
@@ -569,7 +582,8 @@ def pred_height_from_tiff_ML(x_min, y_min, x_max, y_max, out_file, tif_ref, patc
             s1_input = tif_ref[aggregate_key][s1_key]
 
         s1_input_tif = os.path.join(base_dir, "@".join([aggregate_key, s1_key, "TEMP"]) + ".tif")
-        os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s1_input), s1_input_tif))
+        # os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s1_input), s1_input_tif))
+        gdal.Warp(destNameOrDestDS=s1_input_tif, srcDSOrSrcDSTab=s1_input, options=gdal.WarpOptions(outputBounds=target_extent))
         tif_input[aggregate_key][s1_key] = s1_input_tif
 
         if not isinstance(tif_ref[aggregate_key][s2_key], list):
@@ -578,7 +592,8 @@ def pred_height_from_tiff_ML(x_min, y_min, x_max, y_max, out_file, tif_ref, patc
             s2_input = tif_ref[aggregate_key][s2_key]
 
         s2_input_tif = os.path.join(base_dir, "@".join([aggregate_key, s2_key, "TEMP"]) + ".tif")
-        os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s2_input), s2_input_tif))
+        # os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s2_input), s2_input_tif))
+        gdal.Warp(destNameOrDestDS=s2_input_tif, srcDSOrSrcDSTab=s2_input, options=gdal.WarpOptions(outputBounds=target_extent))
         tif_input[aggregate_key][s2_key] = s2_input_tif
 
     # ---------[1] calculate the coordinates of center points of patches where the building height is to be predicted
@@ -632,7 +647,10 @@ def pred_height_from_tiff_ML(x_min, y_min, x_max, y_max, out_file, tif_ref, patc
             band_file_sorted = sorted(band_file, key=lambda x: (int(re.findall(r"TEMP_(\d+)@", x)[0]), int(re.findall(r"_chunk(\d+).npy", x)[0])))
             city_db.create_dataset(band, data=np.concatenate([np.load(f) for f in band_file_sorted]))
 
-    os.system("rm -rf {0}".format(os.path.join(base_dir, "*TEMP*.npy")))
+    # os.system("rm -rf {0}".format(os.path.join(base_dir, "*TEMP*.npy")))
+    tmp_list = glob.glob(os.path.join(base_dir, "*TEMP*.npy"))
+    for f in tmp_list:
+        os.remove(f)
 
     # ---------[3] calculate the feature of each patch and then do some preprocessing with it
     feature = get_feature_from_dataset(hf_db_path, list(tif_input.keys()), s1_prefix=s1_key, s2_prefix=s2_key,
@@ -672,210 +690,92 @@ def pred_height_from_tiff_ML(x_min, y_min, x_max, y_max, out_file, tif_ref, patc
     height_ds.FlushCache()
     height_ds = None
 
-    os.system("rm -rf {0}".format(os.path.join(base_dir, "*TEMP*")))
+    # os.system("rm -rf {0}".format(os.path.join(base_dir, "*TEMP*")))
+    tmp_list = glob.glob(os.path.join(base_dir, "*TEMP*"))
+    for f in tmp_list:
+        os.remove(f)
 
 
-def pred_height_from_tiff_DL(x_min, y_min, x_max, y_max, out_file, tif_ref, patch_size, predictor, trained_record,
-                             resolution, batch_size=8, num_workers=2, s1_key="sentinel_1", s2_key="sentinel_2",
-                             base_dir=".", padding=0.005, activation=None, chunk_size=100000, num_cpu=1, log_scale=True, cuda_used=False):
-    # ------By default, we assume the parameter `tif_dict` takes the form as follows:
-    # ---------------------------------------------------------------------------
-    #       {"50pt":
-    #               {
-    #                   `s1_key`:  `the location of Sentinel-1-50pt GeoTiff file`,
-    #                   `s2_key`:  `the location of Sentinel-2-50pt GeoTiff file`,
-    #                },
-    #        "AnotherAggregation":
-    #               {
-    #                   `s1_key`:  `the location of Sentinel-1-aggregation GeoTiff file`,
-    #                   `s2_key`:  `the location of Sentinel-2-aggregation GeoTiff file`,
-    #               },
-    #         ......
-    #       }
-    # ---------------------------------------------------------------------------
-    hf_db_path = os.path.join(base_dir, "TEMP.h5")
-    hf_db = h5py.File(hf_db_path, mode="w")
+def pred_height_from_tiff_DL_patch(extent: list, out_file: str, tif_ref: dict, patch_size: list, predictor: str, trained_record: str,
+                                   resolution: float, s1_key="sentinel_1", s2_key="sentinel_2", aux_feat_info=None,
+                                   base_dir=".", padding=0.005, batch_size=4, tmp_suffix=None,
+                                   activation=None, log_scale=False, cuda_used=False, v_min=None, v_max=None):
+    """Predict building height or footprint using Deep-Learing-based (DL) models trained by Single Task Learning (STL).
 
-    num_s1_band = 2
-    num_s2_band = 4
-    marker = "@"
+    Parameters
+    ----------
 
-    raw_band = []
-    for aggregate_key in tif_ref.keys():
-        for n in range(1, num_s1_band+1):
-            raw_band.append("_".join([s1_key, aggregate_key, "B" + str(n)]))
-        for n in range(1, num_s2_band+1):
-            raw_band.append("_".join([s2_key, aggregate_key, "B" + str(n)]))
+    extent : list
+        A list in the format `[x_min, y_min, x_max, y_max]` which specifies the extent of the target area.
+    out_file : str
+        Output Path for the predicted result.
+    output_grid : str
+        Output Path for the building footprint density raster layer.
+    tif_ref : dict
+        A dictionary which specifies the path of input Sentinel-1/2's files under different temporal aggregation.
+        An example can be given as follows:
+            {"50pt":
+                   {
+                       `s1_key`:  `path of Sentinel-1-50pt GeoTiff file`,
+                       `s2_key`:  `path of Sentinel-2-50pt GeoTiff file`,
+                    },
+            "AggOps":
+                   {
+                       `s1_key`:  `path of Sentinel-1-aggregation GeoTiff file`,
+                       `s2_key`:  `path of Sentinel-2-aggregation GeoTiff file`,
+                   },
+             ......
+           }
+    patch_size : list
+        A list which specifies the size of input patch.
+        It can be chosen from: `[15]`, `[30]`, `[60]`, `[120]`.
+    predictor : str
+        Name of DL models used for prediction.
+        It can be chosen from: `ResNet18`, `SEResNet18`, `CBAMResNet18`.
+    trained_record : str
+        Path to the pretrained model file.
+    resolution : float
+        Target resolution for building information mapping.
+        It can be chosen from: `0.0009`, `0.00225`, `0.0045`, `0.009`.
+    s1_key : str
+        Key in `tif_ref[AggOps]` which indicates the path of Sentinel-1's files.
+        The default is `sentinel_1`.
+    s2_key : str
+        Key in `tif_ref[AggOps]` which indicates the path of Sentinel-2's files.
+        The default is `sentinel_2`.
+    aux_feat_info: dict
+        A dictionary which contains the auxiliary feature information including `patch_size_ratio` and `path`.
+        The default is `None`.
+    base_dir : str
+        Path of a directory for temporary results saving during prediction.
+        The default is `.`.
+    padding : float
+        Padding size outside the target region (in degrees).
+        The default is `0.005`.
+    batch_size : int
+        Batch size for inference。
+        The default is `4`.
+    tmp_suffix : str
+        Naming suffix for temporary files.
+        The default is `None`.
+    activation : str
+        Activation function for model output.
+        It can be chosen from: `relu`, `sigmoid`. The default is `None`.
+    log_scale: boolean
+        A flag which controls whether log-transformation is used for target variable.
+        The default is `False`.
+    cuda_used: boolean
+        A flag which controls whether CUDA is used for inference.
+        The default is `False`.
+    v_min: float
+        Lower bound for prediction.
+    v_max: float
+        Upper bound for prediction.
 
-    num_cpu_available = multiprocessing.cpu_count()
-    if num_cpu_available < num_cpu:
-        print("Use %d CPUs which is available now" % num_cpu_available)
-        num_cpu = num_cpu_available
+    """
 
-    # ------get features from input GeoTif files
-    # ---------[0] check whether the available GeoTiff file satisfies our needs for prediction
-    check_extent(tif_ref, x_min, y_min, x_max, y_max, padding)
+    x_min, y_min, x_max, y_max = extent
 
-    # ---------[0] clip the given GeoTiff file to the target extent for memory saving
-    tif_input = dict.fromkeys(tif_ref)
-    target_extent = [x_min - padding, y_min - padding, x_max + padding, y_max + padding]
-    for aggregate_key in tif_ref.keys():
-        tif_input[aggregate_key] = {}
-        if not isinstance(tif_ref[aggregate_key][s1_key], list):
-            s1_input = [tif_ref[aggregate_key][s1_key]]
-        else:
-            s1_input = tif_ref[aggregate_key][s1_key]
-
-        s1_input_tif = os.path.join(base_dir, "@".join([aggregate_key, s1_key, "TEMP"]) + ".tif")
-        os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s1_input), s1_input_tif))
-        tif_input[aggregate_key][s1_key] = s1_input_tif
-
-        if not isinstance(tif_ref[aggregate_key][s2_key], list):
-            s2_input = [tif_ref[aggregate_key][s2_key]]
-        else:
-            s2_input = tif_ref[aggregate_key][s2_key]
-
-        s2_input_tif = os.path.join(base_dir, "@".join([aggregate_key, s2_key, "TEMP"]) + ".tif")
-        os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s2_input), s2_input_tif))
-        tif_input[aggregate_key][s2_key] = s2_input_tif
-
-    # ---------[1] calculate the coordinates of center points of patches where the building height is to be predicted
-    nx = int(np.ceil(round(x_max - x_min, 6) / resolution))
-    ny = int(np.ceil(round(y_max - y_min, 6) / resolution))
-    x_center = np.array([x_min + resolution * (i + 1/2) for i in range(0, nx)])
-    y_center = np.array([y_max - resolution * (i + 1/2) for i in range(0, ny)])
-    xx_center, yy_center = np.meshgrid(x_center, y_center)
-    sample_loc = np.concatenate([yy_center.reshape(-1, 1), xx_center.reshape(-1, 1)], axis=1)
-
-    # ---------[2] divide the whole GeoTiff files into patches whose size is: resolution * resolution
-    # ------------use multiprocessing for acceleration
-    pool = multiprocessing.Pool(processes=num_cpu)
-
-    sub_chunk_size = int(chunk_size / num_cpu)
-    n_sample = len(sample_loc)
-    n_sub_chunk = int(np.ceil(n_sample / sub_chunk_size))
-    id_sub = {}
-    for j in range(0, num_cpu):
-        id_sub[j] = []
-
-    for sub_chunk_id in range(0, n_sub_chunk):
-        subproc_id = sub_chunk_id % num_cpu
-        id_sub[subproc_id].append(sample_loc[sub_chunk_size * sub_chunk_id:sub_chunk_size * (sub_chunk_id + 1)])
-
-    for k in id_sub.keys():
-        id_sub[k] = np.concatenate(id_sub[k], axis=0)
-
-    arg_list = [(tif_input, id_sub[j], s1_key, s2_key, list(tif_input.keys()), patch_size,
-                 os.path.join(base_dir, "_".join(["TEMP", str(j)])), marker, int(chunk_size/num_cpu)) for j in range(0, num_cpu)]
-    res_list = pool.starmap(get_patch_from_tiff, arg_list)
-    pool.close()
-    pool.join()
-
-    # ---------determine how many chunks we need to divide using the maximum of chunk_id in each subprocess
-    res_list_flatten = reduce(lambda x, y: x + y, res_list)
-    subproc_chunk = [int(re.findall(r"chunk(\d+).npy", res_file)[0]) for res_file in res_list_flatten]
-    n_chunk = max(subproc_chunk)
-
-    for chunk_id in range(0, n_chunk + 1):
-        # ------------create (sub-)group for the city
-        city_db = hf_db.create_group("TEMP@{0}".format(chunk_id))
-
-        # ------------gather raw band variable
-        for band in raw_band:
-            band_file = []
-            for res_file in res_list_flatten:
-                if len(re.findall(r"@{0}_chunk{1}".format(band, chunk_id), res_file)) > 0:
-                    band_file.append(res_file)
-
-            band_file_sorted = sorted(band_file, key=lambda x: (int(re.findall(r"TEMP_(\d+)@", x)[0]),
-                                                                int(re.findall(r"_chunk(\d+).npy", x)[0])))
-            city_db.create_dataset(band, data=np.concatenate([np.load(f) for f in band_file_sorted]))
-
-    hf_db.close()
-
-    os.system("rm -rf {0}".format(os.path.join(base_dir, "*TEMP*.npy")))
-
-    # ---------[3] calculate the feature of each patch and then do some preprocessing with it
-    # ------load the PyTorch model
-    if patch_size[0] == 15:
-        in_plane = 64
-        num_block = 2
-    elif patch_size[0] == 30:
-        in_plane = 64
-        num_block = 1
-    elif patch_size[0] == 60:
-        in_plane = 64
-        num_block = 1
-    else:
-        in_plane = 64
-        num_block = 1
-
-    if predictor == "ResNet18":
-        est_model = model_ResNet(input_channels=6, in_plane=in_plane, input_size=patch_size[0], num_block=num_block,
-                                 log_scale=log_scale, activation=activation, cuda_used=cuda_used,
-                                 trained_record=trained_record)
-    elif predictor == "SEResNet18":
-        est_model = model_SEResNet(input_channels=6, in_plane=in_plane, input_size=patch_size[0], num_block=num_block,
-                                   log_scale=log_scale, activation=activation, cuda_used=cuda_used,
-                                   trained_record=trained_record)
-    elif predictor == "CBAMResNet18":
-        est_model = model_CBAMResNet(input_channels=6, in_plane=in_plane, input_size=patch_size[0], num_block=num_block,
-                                     log_scale=log_scale, activation=activation, cuda_used=cuda_used,
-                                     trained_record=trained_record)
-    else:
-        raise NotImplementedError
-
-    cuda_used = (cuda_used and torch.cuda.is_available())
-
-    if cuda_used:
-        est_model = est_model.cuda()
-
-    est_model.eval()
-
-    # ------construct a DataLoader
-    tiff_data_loader = load_data_hdf5(hf_db_path, batch_size, num_workers, None, list(tif_ref.keys()), mode="infer")
-
-    # ------predict the height
-    target_list = []
-    for i, sample in enumerate(tiff_data_loader):
-        input_band = sample["feature"]
-        if cuda_used:
-            input_band = input_band.cuda()
-        with torch.no_grad():
-            output = est_model(input_band)
-        output = torch.squeeze(output)
-        output = output.cpu().numpy()
-        target_list.append(output)
-
-    height_pred = np.reshape(np.concatenate(target_list), (ny, nx))
-    # ---------if the log_scale == True, the results of prediction is ln(H)
-    if log_scale:
-        height_pred = np.exp(height_pred)
-
-    # ------save the height into the GeoTiff file
-    driver = gdal.GetDriverByName("GTiff")
-    height_ds = driver.Create(out_file, nx, ny, 1, gdal.GDT_Float64)
-    height_ds.GetRasterBand(1).WriteArray(height_pred)
-
-    aggregate_example = list(tif_input.keys())[0]
-    tif_example = tif_input[aggregate_example][s1_key]
-
-    ds = gdal.Open(tif_example)
-    geo_trans = ds.GetGeoTransform()
-    height_geo_trans = (x_min, resolution, geo_trans[2], y_max, geo_trans[4], -resolution)
-    proj = ds.GetProjection()
-    height_ds.SetGeoTransform(height_geo_trans)
-    height_ds.SetProjection(proj)
-    height_ds.FlushCache()
-    height_ds = None
-
-    os.system("rm -rf {0}".format(os.path.join(base_dir, "*TEMP*")))
-
-
-def pred_height_from_tiff_DL_patch(x_min, y_min, x_max, y_max, out_file, tif_ref, patch_size, predictor, trained_record,
-                                   resolution, s1_key="sentinel_1", s2_key="sentinel_2", base_dir=".", padding=0.005,
-                                   batch_size=1,
-                                   activation=None, log_scale=True, cuda_used=False, v_min=None, v_max=None):
     num_s1_band = 2
     num_s2_band = 4
     # scale = 0.0001
@@ -898,15 +798,42 @@ def pred_height_from_tiff_DL_patch(x_min, y_min, x_max, y_max, out_file, tif_ref
 
     cuda_used = (cuda_used and torch.cuda.is_available())
 
+    aux_namelist = None
+    aux_size = None
+    if aux_feat_info is not None:
+        aux_namelist = sorted(aux_feat_info.keys())
+        aux_size = int(aux_feat_info[aux_namelist[0]]["patch_size_ratio"] * patch_size[0])
+    
     if predictor == "ResNet18":
-        est_model = model_ResNet(input_channels=6, in_plane=in_plane, input_size=patch_size[0], num_block=num_block,
-                                 log_scale=log_scale, activation=activation, cuda_used=cuda_used, trained_record=trained_record)
+        if aux_feat_info is None:
+            est_model = model_ResNet(in_plane=in_plane, input_channels=6, input_size=patch_size[0],
+                                        num_block=num_block, log_scale=log_scale, activation=activation,
+                                        cuda_used=cuda_used, trained_record=trained_record)
+        else:
+            est_model = model_ResNet_aux(in_plane=in_plane, input_channels=6, input_size=patch_size[0],
+                                            aux_input_size=aux_size, num_aux=len(aux_namelist),
+                                            num_block=num_block, log_scale=log_scale, activation=activation,
+                                            cuda_used=cuda_used, trained_record=trained_record)
     elif predictor == "SEResNet18":
-        est_model = model_SEResNet(input_channels=6, in_plane=in_plane, input_size=patch_size[0], num_block=num_block,
-                                   log_scale=log_scale, activation=activation, cuda_used=cuda_used, trained_record=trained_record)
+        if aux_namelist is None:
+            est_model = model_SEResNet(in_plane=in_plane, input_channels=6, input_size=patch_size[0],
+                                        num_block=num_block, log_scale=log_scale, activation=activation,
+                                        cuda_used=cuda_used, trained_record=trained_record)
+        else:
+            est_model = model_SEResNet_aux(in_plane=in_plane, input_channels=6, input_size=patch_size[0],
+                                            aux_input_size=aux_size, num_aux=len(aux_namelist),
+                                            num_block=num_block, log_scale=log_scale, activation=activation,
+                                            cuda_used=cuda_used, trained_record=trained_record)
     elif predictor == "CBAMResNet18":
-        est_model = model_CBAMResNet(input_channels=6, in_plane=in_plane, input_size=patch_size[0], num_block=num_block,
-                                     log_scale=log_scale, activation=activation, cuda_used=cuda_used, trained_record=trained_record)
+        if aux_namelist is None:
+            est_model = model_CBAMResNet(in_plane=in_plane, input_channels=6, input_size=patch_size[0],
+                                            num_block=num_block, log_scale=log_scale, activation=activation,
+                                            cuda_used=cuda_used, trained_record=trained_record)
+        else:
+            est_model = model_CBAMResNet_aux(in_plane=in_plane, input_channels=6, input_size=patch_size[0],
+                                                aux_input_size=aux_size, num_aux=len(aux_namelist),
+                                                num_block=num_block, log_scale=log_scale, activation=activation,
+                                                cuda_used=cuda_used, trained_record=trained_record)
     else:
         raise NotImplementedError
 
@@ -925,11 +852,12 @@ def pred_height_from_tiff_DL_patch(x_min, y_min, x_max, y_max, out_file, tif_ref
 
     # ------[2] prepare the input tiff
     # ---------check whether the available GeoTiff file satisfies our needs for prediction
-    check_extent(tif_ref, x_min, y_min, x_max, y_max, padding)
+    check_extent(base_dir, tif_ref, x_min, y_min, x_max, y_max, padding)
 
     # ---------clip the given GeoTiff file to the target extent for memory saving
     tif_input = dict.fromkeys(tif_ref)
     target_extent = [x_min - padding, y_min - padding, x_max + padding, y_max + padding]
+
     for aggregate_key in tif_ref.keys():
         tif_input[aggregate_key] = {}
         if not isinstance(tif_ref[aggregate_key][s1_key], list):
@@ -937,8 +865,9 @@ def pred_height_from_tiff_DL_patch(x_min, y_min, x_max, y_max, out_file, tif_ref
         else:
             s1_input = tif_ref[aggregate_key][s1_key]
 
-        s1_input_tif = os.path.join(base_dir, "@".join([aggregate_key, s1_key, "TEMP"]) + ".tif")
-        os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s1_input), s1_input_tif))
+        s1_input_tif = os.path.join(base_dir, "@".join([aggregate_key, s1_key, "TEMP"]) + str(tmp_suffix or '') + ".tif")
+        # os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s1_input), s1_input_tif))
+        gdal.Warp(destNameOrDestDS=s1_input_tif, srcDSOrSrcDSTab=s1_input, options=gdal.WarpOptions(outputBounds=target_extent))
         tif_input[aggregate_key][s1_key] = s1_input_tif
 
         if not isinstance(tif_ref[aggregate_key][s2_key], list):
@@ -946,8 +875,9 @@ def pred_height_from_tiff_DL_patch(x_min, y_min, x_max, y_max, out_file, tif_ref
         else:
             s2_input = tif_ref[aggregate_key][s2_key]
 
-        s2_input_tif = os.path.join(base_dir, "@".join([aggregate_key, s2_key, "TEMP"]) + ".tif")
-        os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s2_input), s2_input_tif))
+        s2_input_tif = os.path.join(base_dir, "@".join([aggregate_key, s2_key, "TEMP"]) + str(tmp_suffix or '') + ".tif")
+        # os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s2_input), s2_input_tif))
+        gdal.Warp(destNameOrDestDS=s2_input_tif, srcDSOrSrcDSTab=s2_input, options=gdal.WarpOptions(outputBounds=target_extent))
         tif_input[aggregate_key][s2_key] = s2_input_tif
 
     # ----------store the value of TiffArray into a dict in advance where the key is its file name
@@ -985,13 +915,26 @@ def pred_height_from_tiff_DL_patch(x_min, y_min, x_max, y_max, out_file, tif_ref
             tiffArr[s2_name][band_id] = fill_nan_nearest(tiffArr[s2_name][band_id])
             tiffArr[s2_name][band_id] = rgb_rescale_band(tiffArr[s2_name][band_id])
         tiffGeoTransform[s2_name] = GetGeoTransformFromTiff(sub_dict[s2_key])
+    
+    if aux_namelist is not None:
+        for feat in aux_namelist:
+            if not isinstance(tif_ref[aggregate_key][s2_key], list):
+                aux_feat_input = [aux_feat_info[feat]["path"]]
+            else:
+                aux_feat_input = aux_feat_info[feat]["path"]
+            
+            aux_feat_input_tif = os.path.join(base_dir, "@".join([aggregate_key, feat, "TEMP"]) + str(tmp_suffix or '') + ".tif")
+            # os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(aux_feat_input), aux_feat_input_tif))
+            gdal.Warp(destNameOrDestDS=aux_feat_input_tif, srcDSOrSrcDSTab=aux_feat_input, options=gdal.WarpOptions(outputBounds=target_extent))
+            tiffArr[feat] = GetArrayFromTiff(aux_feat_input_tif)
+            tiffGeoTransform[feat] = GetGeoTransformFromTiff(aux_feat_input_tif)
 
     # ------[3] height mapping on the given tiff array
     # ---------calculate the coordinates of center points of patches where the building height is to be predicted
     # ---------note that for floating number ops, we may have: 0.1 + 0.2 = 0.30000004
     nx = int(np.ceil(round(round(x_max - x_min, 6) / resolution, 6)))
     ny = int(np.ceil(round(round(y_max - y_min, 6) / resolution, 6)))
-    print(x_max, x_min, nx, y_max, y_min, ny)
+    
     x_center = np.array([x_min + resolution * (i + 1/2) for i in range(0, nx)])
     y_center = np.array([y_max - resolution * (i + 1/2) for i in range(0, ny)])
 
@@ -1004,6 +947,12 @@ def pred_height_from_tiff_DL_patch(x_min, y_min, x_max, y_max, out_file, tif_ref
     for batch_id in range(0, num_batch):
         id_shift = batch_id * batch_size
         batch_input = []
+
+        if aux_namelist is not None:
+            aux_batch_input = []
+        else:
+            aux_batch_input = None
+
         for i in range(0, batch_size):
             pid = id_shift + i
             if pid < num_pixel:
@@ -1035,6 +984,21 @@ def pred_height_from_tiff_DL_patch(x_min, y_min, x_max, y_max, out_file, tif_ref
                     for n in range(0, num_s2_band):
                         s2_feature_name = "_".join([s2_key, aggregate_key, "B" + str(n + 1)])
                         input_band[s2_feature_name] = s2_patch[n:len(s2_patch):num_s2_band]
+                
+                # ---------gather the feature information centered on this selected pixel
+                if aux_namelist is not None:
+                    for feat in aux_namelist:
+                        aux_patch = GetPatchFromTiffArray(tiff_array=tiffArr[feat], tiff_geoTransform=tiffGeoTransform[feat],
+                                                        x=x_loc, y=y_loc, patch_size=[aux_size])
+                        input_band[feat] = aux_patch
+
+                '''
+                # ------------fill NaN values
+                nan_ratio_dict = dict((k, calc_nan_ratio(input_band[k][0])) for k in input_band.keys())
+                for k, v in input_band.items():
+                    if nan_ratio_dict[k] > 0:
+                        input_band[k] = np.expand_dims(fill_nan_nearest(v[0]), axis=0)
+                '''
 
                 # ------------patch preprocessing
                 for aggregation_ops in channel_ref.keys():
@@ -1066,20 +1030,40 @@ def pred_height_from_tiff_DL_patch(x_min, y_min, x_max, y_max, out_file, tif_ref
                                             s2_rgb_patch.astype(np.uint8), s2_nir_patch.astype(np.uint8)], axis=-1)
 
                     # ---------convert numpy.ndarray of shape [H, W, C] to torch.tensor [C, H, W]
-                    patch = tensor_transform(patch)
+                    patch = tensor_transform(patch).type(torch.FloatTensor)
                     patch_multi_agg.append(patch)
 
                 feat = torch.cat(patch_multi_agg, dim=0)
                 feat = torch.unsqueeze(feat, dim=0)
-
                 batch_input.append(feat)
 
+                if aux_namelist is not None:
+                    aux_feat = []
+                    for k in aux_namelist:
+                        aux_patch = input_band[feat]
+                        aux_patch = np.transpose(aux_patch, (1, 2, 0))
+                        aux_feat.append(tensor_transform(aux_patch).type(torch.FloatTensor))
+                    aux_feat = torch.cat(aux_feat, dim=0)
+                    aux_feat = torch.unsqueeze(aux_feat, dim=0)
+
+                    aux_batch_input.append(aux_feat)
+
         batch_input = torch.cat(batch_input, dim=0)
+        if aux_batch_input is not None:
+            aux_batch_input = torch.cat(aux_batch_input, dim=0)
 
         if cuda_used:
             batch_input = batch_input.cuda()
-        with torch.no_grad():
-            output = est_model(batch_input)
+            if aux_batch_input is not None:
+                aux_batch_input = aux_batch_input.cuda()
+
+        if aux_batch_input is not None:
+            with torch.no_grad():
+                output = est_model(batch_input)
+        else:
+            with torch.no_grad():
+                output = est_model(batch_input, aux_batch_input)
+
         output = torch.squeeze(output)
         output = output.cpu().numpy()
         height_pred.append(output)
@@ -1113,13 +1097,99 @@ def pred_height_from_tiff_DL_patch(x_min, y_min, x_max, y_max, out_file, tif_ref
     height_ds = None
 
 
-def pred_height_from_tiff_DL_patch_MTL(x_min, y_min, x_max, y_max, out_footprint_file, out_height_file, tif_ref,
-                                       patch_size, predictor, trained_record, resolution,
-                                       s1_key="sentinel_1", s2_key="sentinel_2", crossed=False,
-                                       base_dir=".", padding=0.005,
-                                       batch_size=1,
+def pred_height_from_tiff_DL_patch_MTL(extent: list, out_footprint_file: str, out_height_file: str, tif_ref: dict,
+                                       patch_size: list, predictor: str, trained_record: str, resolution: float,
+                                       s1_key="sentinel_1", s2_key="sentinel_2", aux_feat_info=None,
+                                       crossed=False, base_dir=".", padding=0.005, batch_size=1, tmp_suffix=None,
                                        log_scale=True, cuda_used=False,
-                                       h_min=None, h_max=None, f_min=None, f_max=None):
+                                       h_min=0.0, h_max=None, f_min=0.0, f_max=None):
+    """Predict building height and footprint using Deep-Learing-based (DL) models trained by Multi-Task Learning (STL).
+
+    Parameters
+    ----------
+
+    extent : list
+        A list in the format `[x_min, y_min, x_max, y_max]` which specifies the extent of the target area.
+    out_footprint_file : str
+        Output Path for the predicted building footprint result.
+    out_height_file: str
+        Output Path for the predicted building height result.
+    tif_ref : dict
+        A dictionary which specifies the path of input Sentinel-1/2's files under different temporal aggregation.
+        An example can be given as follows:
+            {"50pt":
+                   {
+                       `s1_key`:  `path of Sentinel-1-50pt GeoTiff file`,
+                       `s2_key`:  `path of Sentinel-2-50pt GeoTiff file`,
+                    },
+            "AggOps":
+                   {
+                       `s1_key`:  `path of Sentinel-1-aggregation GeoTiff file`,
+                       `s2_key`:  `path of Sentinel-2-aggregation GeoTiff file`,
+                   },
+             ......
+           }
+    patch_size : list
+        A list which specifies the size of input patch.
+        It can be chosen from: `[15]`, `[30]`, `[60]`, `[120]`.
+    predictor : str
+        Name of DL models used for prediction.
+        It can be chosen from: `ResNet18`, `SEResNet18`, `CBAMResNet18`.
+    trained_record : str
+        Path to the pretrained model file.
+    resolution : float
+        Target resolution for building information mapping.
+        It can be chosen from: `0.0009`, `0.00225`, `0.0045`, `0.009`.
+    s1_key : str
+        Key in `tif_ref[AggOps]` which indicates the path of Sentinel-1's files.
+        The default is `sentinel_1`.
+    s2_key : str
+        Key in `tif_ref[AggOps]` which indicates the path of Sentinel-2's files.
+        The default is `sentinel_2`.
+    aux_feat_info: dict
+        A dictionary which contains the auxiliary feature information including `patch_size_ratio` and `path`.
+        The default is `None`.
+    crossed: boolean
+        A flag which controls whether a link is to be added between last fully-connected layers of building footprint and height prediction.
+        The default is `False`.
+    base_dir : str
+        Path of a directory for temporary results saving during prediction.
+        The default is `.`.
+    padding : float
+        Padding size outside the target region (in degrees).
+        The default is `0.005`.
+    batch_size : int
+        Batch size for inference。
+        The default is `4`.
+    tmp_suffix : str
+        Naming suffix for temporary files.
+        The default is `None`.
+    activation : str
+        Activation function for model output.
+        It can be chosen from: `relu`, `sigmoid`. The default is `None`.
+    log_scale: boolean
+        A flag which controls whether log-transformation is used for target variable.
+        The default is `False`.
+    cuda_used: boolean
+        A flag which controls whether CUDA is used for inference.
+        The default is `False`.
+    h_min: float
+        Lower bound for building height prediction.
+        The default is `0.0`.
+    h_max: float
+        Upper bound for building height prediction.
+        The default is `None`.
+    f_min: float
+        Lower bound for building footprint prediction.
+        The default is `0.0`.
+    f_max: float
+        Upper bound for building footprint prediction.
+        The default is `None`.
+
+    """
+
+    x_min, y_min, x_max, y_max = extent
+    
     num_s1_band = 2
     num_s2_band = 4
     # scale = 0.0001
@@ -1140,19 +1210,46 @@ def pred_height_from_tiff_DL_patch_MTL(x_min, y_min, x_max, y_max, out_footprint
         in_plane = 64
         num_block = 1
 
+    cuda_used = (cuda_used and torch.cuda.is_available())
+
+    aux_namelist = None
+    aux_size = None
+    if aux_feat_info is not None:
+        aux_namelist = sorted(aux_feat_info.keys())
+        aux_size = int(aux_feat_info[aux_namelist[0]]["patch_size_ratio"] * patch_size[0])
+
     if predictor == "ResNet18":
-        est_model = model_ResNetMTL(input_channels=6, in_plane=in_plane, input_size=patch_size[0], num_block=num_block,
-                                    log_scale=log_scale, crossed=crossed, trained_record=trained_record)
+        if aux_feat_info is None:
+            est_model = model_ResNetMTL(in_plane=in_plane, input_channels=6, input_size=patch_size[0],
+                                            num_block=num_block, log_scale=log_scale, crossed=crossed,
+                                            cuda_used=cuda_used, trained_record=trained_record)
+        else:
+            est_model = model_ResNetMTL_aux(in_plane=in_plane, input_channels=6, input_size=patch_size[0],
+                                                aux_input_size=aux_size, num_aux=len(aux_namelist),
+                                                num_block=num_block, log_scale=log_scale, crossed=crossed,
+                                                cuda_used=cuda_used, trained_record=trained_record)
     elif predictor == "SEResNet18":
-        est_model = model_SEResNetMTL(input_channels=6, in_plane=in_plane, input_size=patch_size[0], num_block=num_block,
-                                      log_scale=log_scale, crossed=crossed, trained_record=trained_record)
+        if aux_namelist is None:
+            est_model = model_SEResNetMTL(in_plane=in_plane, input_channels=6, input_size=patch_size[0],
+                                                num_block=num_block, log_scale=log_scale, crossed=crossed,
+                                                cuda_used=cuda_used, trained_record=trained_record)
+        else:
+            est_model = model_SEResNetMTL_aux(in_plane=in_plane, input_channels=6, input_size=patch_size[0],
+                                                aux_input_size=aux_size, num_aux=len(aux_namelist),
+                                                num_block=num_block, log_scale=log_scale, crossed=crossed,
+                                                cuda_used=cuda_used, trained_record=trained_record)
     elif predictor == "CBAMResNet18":
-        est_model = model_CBAMResNetMTL(input_channels=6, in_plane=in_plane, input_size=patch_size[0], num_block=num_block,
-                                        log_scale=log_scale, crossed=crossed, trained_record=trained_record)
+        if aux_namelist is None:
+            est_model = model_CBAMResNetMTL(in_plane=in_plane, input_channels=6, input_size=patch_size[0],
+                                                num_block=num_block, log_scale=log_scale, crossed=crossed,
+                                                cuda_used=cuda_used, trained_record=trained_record)
+        else:
+            est_model = model_CBAMResNetMTL_aux(in_plane=in_plane, input_channels=6, input_size=patch_size[0],
+                                                    aux_input_size=aux_size, num_aux=len(aux_namelist),
+                                                    num_block=num_block, log_scale=log_scale, crossed=crossed,
+                                                    cuda_used=cuda_used, trained_record=trained_record)
     else:
         raise NotImplementedError
-
-    cuda_used = (cuda_used and torch.cuda.is_available())
 
     if cuda_used:
         est_model = est_model.cuda()
@@ -1161,7 +1258,7 @@ def pred_height_from_tiff_DL_patch_MTL(x_min, y_min, x_max, y_max, out_footprint
 
     # ------[2] prepare the input tiff
     # ---------check whether the available GeoTiff file satisfies our needs for prediction
-    check_extent(tif_ref, x_min, y_min, x_max, y_max, padding)
+    check_extent(base_dir, tif_ref, x_min, y_min, x_max, y_max, padding)
 
     # ---------clip the given GeoTiff file to the target extent for memory saving
     tif_input = dict.fromkeys(tif_ref)
@@ -1173,8 +1270,9 @@ def pred_height_from_tiff_DL_patch_MTL(x_min, y_min, x_max, y_max, out_footprint
         else:
             s1_input = tif_ref[aggregate_key][s1_key]
 
-        s1_input_tif = os.path.join(base_dir, "@".join([aggregate_key, s1_key, "TEMP"]) + ".tif")
-        os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s1_input), s1_input_tif))
+        s1_input_tif = os.path.join(base_dir, "@".join([aggregate_key, s1_key, "TEMP"]) + str(tmp_suffix or '') + ".tif")
+        # os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s1_input), s1_input_tif))
+        gdal.Warp(destNameOrDestDS=s1_input_tif, srcDSOrSrcDSTab=s1_input, options=gdal.WarpOptions(outputBounds=target_extent))
         tif_input[aggregate_key][s1_key] = s1_input_tif
 
         if not isinstance(tif_ref[aggregate_key][s2_key], list):
@@ -1182,8 +1280,9 @@ def pred_height_from_tiff_DL_patch_MTL(x_min, y_min, x_max, y_max, out_footprint
         else:
             s2_input = tif_ref[aggregate_key][s2_key]
 
-        s2_input_tif = os.path.join(base_dir, "@".join([aggregate_key, s2_key, "TEMP"]) + ".tif")
-        os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s2_input), s2_input_tif))
+        s2_input_tif = os.path.join(base_dir, "@".join([aggregate_key, s2_key, "TEMP"]) + str(tmp_suffix or '') + ".tif")
+        # os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s2_input), s2_input_tif))
+        gdal.Warp(destNameOrDestDS=s2_input_tif, srcDSOrSrcDSTab=s2_input, options=gdal.WarpOptions(outputBounds=target_extent))
         tif_input[aggregate_key][s2_key] = s2_input_tif
 
     # ----------store the value of TiffArray into a dict in advance where the key is its file name
@@ -1221,6 +1320,19 @@ def pred_height_from_tiff_DL_patch_MTL(x_min, y_min, x_max, y_max, out_footprint
             tiffArr[s2_name][band_id] = fill_nan_nearest(tiffArr[s2_name][band_id])
             tiffArr[s2_name][band_id] = rgb_rescale_band(tiffArr[s2_name][band_id])
         tiffGeoTransform[s2_name] = GetGeoTransformFromTiff(sub_dict[s2_key])
+    
+    if aux_namelist is not None:
+        for feat in aux_namelist:
+            if not isinstance(tif_ref[aggregate_key][s2_key], list):
+                aux_feat_input = [aux_feat_info[feat]["path"]]
+            else:
+                aux_feat_input = aux_feat_info[feat]["path"]
+            
+            aux_feat_input_tif = os.path.join(base_dir, "@".join([aggregate_key, feat, "TEMP"]) + str(tmp_suffix or '') + ".tif")
+            # os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(aux_feat_input), aux_feat_input_tif))
+            gdal.Warp(destNameOrDestDS=aux_feat_input_tif, srcDSOrSrcDSTab=aux_feat_input, options=gdal.WarpOptions(outputBounds=target_extent))
+            tiffArr[feat] = GetArrayFromTiff(aux_feat_input_tif)
+            tiffGeoTransform[feat] = GetGeoTransformFromTiff(aux_feat_input_tif)
 
     # ------[3] height mapping on the given tiff array
     # ---------calculate the coordinates of center points of patches where the building height is to be predicted
@@ -1241,6 +1353,12 @@ def pred_height_from_tiff_DL_patch_MTL(x_min, y_min, x_max, y_max, out_footprint
     for batch_id in range(0, num_batch):
         id_shift = batch_id * batch_size
         batch_input = []
+
+        if aux_namelist is not None:
+            aux_batch_input = []
+        else:
+            aux_batch_input = None
+
         for i in range(0, batch_size):
             pid = id_shift + i
             if pid < num_pixel:
@@ -1274,6 +1392,14 @@ def pred_height_from_tiff_DL_patch_MTL(x_min, y_min, x_max, y_max, out_footprint
                         s2_feature_name = "_".join([s2_key, aggregate_key, "B" + str(n + 1)])
                         input_band[s2_feature_name] = s2_patch[n:len(s2_patch):num_s2_band]
 
+                '''
+                # ------------fill NaN values
+                nan_ratio_dict = dict((k, calc_nan_ratio(input_band[k][0])) for k in input_band.keys())
+                for k, v in input_band.items():
+                    if nan_ratio_dict[k] > 0:
+                        input_band[k] = np.expand_dims(fill_nan_nearest(v[0]), axis=0)
+                '''
+
                 # ------------patch preprocessing
                 for aggregation_ops in channel_ref.keys():
                     s1_vv_name = channel_ref[aggregation_ops]["S1_VV"]
@@ -1304,21 +1430,40 @@ def pred_height_from_tiff_DL_patch_MTL(x_min, y_min, x_max, y_max, out_footprint
                                             s2_rgb_patch.astype(np.uint8), s2_nir_patch.astype(np.uint8)], axis=-1)
 
                     # ---------convert numpy.ndarray of shape [H, W, C] to torch.tensor [C, H, W]
-                    patch = tensor_transform(patch)
+                    patch = tensor_transform(patch).type(torch.FloatTensor)
                     patch_multi_agg.append(patch)
 
                 feat = torch.cat(patch_multi_agg, dim=0)
                 feat = torch.unsqueeze(feat, dim=0)
-
                 batch_input.append(feat)
 
+                if aux_namelist is not None:
+                    aux_feat = []
+                    for k in aux_namelist:
+                        aux_patch = input_band[feat]
+                        aux_patch = np.transpose(aux_patch, (1, 2, 0))
+                        aux_feat.append(tensor_transform(aux_patch).type(torch.FloatTensor))
+                    aux_feat = torch.cat(aux_feat, dim=0)
+                    aux_feat = torch.unsqueeze(aux_feat, dim=0)
+
+                    aux_batch_input.append(aux_feat)
+
         batch_input = torch.cat(batch_input, dim=0)
+        if aux_batch_input is not None:
+            aux_batch_input = torch.cat(aux_batch_input, dim=0)
 
         if cuda_used:
             batch_input = batch_input.cuda()
+            if aux_batch_input is not None:
+                aux_batch_input = aux_batch_input.cuda()
+        
+        if aux_batch_input is not None:
+            with torch.no_grad():
+                output_footprint, output_height = est_model(batch_input)
+        else:
+            with torch.no_grad():
+                output_footprint, output_height = est_model(batch_input, aux_batch_input)
 
-        with torch.no_grad():
-            output_footprint, output_height = est_model(batch_input)
         output_footprint = torch.squeeze(output_footprint)
         output_height = torch.squeeze(output_height)
 

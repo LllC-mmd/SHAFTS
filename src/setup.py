@@ -40,11 +40,8 @@ setup(
     packages=["shaft"],
     package_data={
         "shaft": [
-            "sample_run/*",
-            "sample_run/Input/*",
             "*.json",
-            "util/*",
-            "cmd/*",
+            "utils/*",
         ]
     },
     # distclass=BinaryDistribution,
@@ -72,17 +69,6 @@ setup(
         "earthengine-api",
         "kneed",  # kneed point detection for CCAP algorithms
     ],
-    extras_require={
-        "hdf": [
-            "tables",  # for dumping in hdf5
-        ]
-    },
-    entry_points={
-        #   command line tools
-        "console_scripts": [
-            "suews-run=supy.cmd.SUEWS:SUEWS",
-        ]
-    },
     include_package_data=True,
     python_requires="=3.7.*",
     classifiers=[

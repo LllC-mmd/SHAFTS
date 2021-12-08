@@ -1,4 +1,4 @@
-from typing import List, Any
+import glob
 
 from torch import cuda
 
@@ -27,7 +27,8 @@ def check_extent(base_dir, tif_ref, x_min, y_min, x_max, y_max, padding):
             s1_input = tif_ref[aggregate_key][s1_key]
 
         test_s1_tif = os.path.join(base_dir, "TEMP_S1.tif")
-        os.system("gdalwarp {0} {1}".format(" ".join(s1_input), test_s1_tif))
+        # os.system("gdalwarp {0} {1}".format(" ".join(s1_input), test_s1_tif))
+        gdal.Warp(destNameOrDestDS=test_s1_tif, srcDSOrSrcDSTab=s1_input)
 
         s1_ds = gdal.Open(test_s1_tif)
         s1_x_min, s1_dx, _, s1_y_max, _, s1_dy = s1_ds.GetGeoTransform()
@@ -40,7 +41,8 @@ def check_extent(base_dir, tif_ref, x_min, y_min, x_max, y_max, padding):
             s2_input = tif_ref[aggregate_key][s2_key]
 
         test_s2_tif = os.path.join(base_dir, "TEMP_S2.tif")
-        os.system("gdalwarp {0} {1}".format(" ".join(s2_input), test_s2_tif))
+        # os.system("gdalwarp {0} {1}".format(" ".join(s2_input), test_s2_tif))
+        gdal.Warp(destNameOrDestDS=test_s2_tif, srcDSOrSrcDSTab=s2_input)
 
         s2_ds = gdal.Open(test_s2_tif)
         s2_x_min, s2_dx, _, s2_y_max, _, s2_dy = s2_ds.GetGeoTransform()
@@ -415,7 +417,8 @@ def pred_height_from_tiff_VVH(x_min, y_min, x_max, y_max, out_file, tif_ref, pat
             s1_input = tif_ref[aggregate_key][s1_key]
 
         s1_input_tif = os.path.join(base_dir, "@".join([aggregate_key, s1_key, "TEMP"]) + ".tif")
-        os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s1_input), s1_input_tif))
+        # os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s1_input), s1_input_tif))
+        gdal.Warp(destNameOrDestDS=s1_input_tif, srcDSOrSrcDSTab=s1_input, options=gdal.WarpOptions(outputBounds=target_extent))
         tif_input[aggregate_key][s1_key] = s1_input_tif
 
     # ---------[1] calculate the coordinates of center points of patches where the building height is to be predicted
@@ -469,7 +472,10 @@ def pred_height_from_tiff_VVH(x_min, y_min, x_max, y_max, out_file, tif_ref, pat
             band_file_sorted = sorted(band_file, key=lambda x: (int(re.findall(r"TEMP_(\d+)@", x)[0]), int(re.findall(r"_chunk(\d+).npy", x)[0])))
             city_db.create_dataset(band, data=np.concatenate([np.load(f) for f in band_file_sorted]))
 
-    os.system("rm -rf {0}".format(os.path.join(base_dir, "*TEMP*.npy")))
+    # os.system("rm -rf {0}".format(os.path.join(base_dir, "*TEMP*.npy")))
+    tmp_list = glob.glob(os.path.join(base_dir, "*TEMP*.npy"))
+    for f in tmp_list:
+        os.remove(f)
 
     # ---------[3] calculate the feature of each patch and then do some preprocessing with it
     feature = get_backscatterCoef_from_dataset(hf_db_path, list(tif_input.keys())[0], gamma=gamma, s1_prefix=s1_key,
@@ -501,7 +507,10 @@ def pred_height_from_tiff_VVH(x_min, y_min, x_max, y_max, out_file, tif_ref, pat
     height_ds.FlushCache()
     height_ds = None
 
-    os.system("rm -rf {0}".format(os.path.join(base_dir, "*TEMP*")))
+    # os.system("rm -rf {0}".format(os.path.join(base_dir, "*TEMP*")))
+    tmp_list = glob.glob(os.path.join(base_dir, "*TEMP*"))
+    for f in tmp_list:
+        os.remove(f)
 
 
 def pred_height_from_tiff_ML(x_min, y_min, x_max, y_max, out_file, tif_ref, patch_size, predictor, resolution,
@@ -573,7 +582,8 @@ def pred_height_from_tiff_ML(x_min, y_min, x_max, y_max, out_file, tif_ref, patc
             s1_input = tif_ref[aggregate_key][s1_key]
 
         s1_input_tif = os.path.join(base_dir, "@".join([aggregate_key, s1_key, "TEMP"]) + ".tif")
-        os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s1_input), s1_input_tif))
+        # os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s1_input), s1_input_tif))
+        gdal.Warp(destNameOrDestDS=s1_input_tif, srcDSOrSrcDSTab=s1_input, options=gdal.WarpOptions(outputBounds=target_extent))
         tif_input[aggregate_key][s1_key] = s1_input_tif
 
         if not isinstance(tif_ref[aggregate_key][s2_key], list):
@@ -582,7 +592,8 @@ def pred_height_from_tiff_ML(x_min, y_min, x_max, y_max, out_file, tif_ref, patc
             s2_input = tif_ref[aggregate_key][s2_key]
 
         s2_input_tif = os.path.join(base_dir, "@".join([aggregate_key, s2_key, "TEMP"]) + ".tif")
-        os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s2_input), s2_input_tif))
+        # os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s2_input), s2_input_tif))
+        gdal.Warp(destNameOrDestDS=s2_input_tif, srcDSOrSrcDSTab=s2_input, options=gdal.WarpOptions(outputBounds=target_extent))
         tif_input[aggregate_key][s2_key] = s2_input_tif
 
     # ---------[1] calculate the coordinates of center points of patches where the building height is to be predicted
@@ -636,7 +647,10 @@ def pred_height_from_tiff_ML(x_min, y_min, x_max, y_max, out_file, tif_ref, patc
             band_file_sorted = sorted(band_file, key=lambda x: (int(re.findall(r"TEMP_(\d+)@", x)[0]), int(re.findall(r"_chunk(\d+).npy", x)[0])))
             city_db.create_dataset(band, data=np.concatenate([np.load(f) for f in band_file_sorted]))
 
-    os.system("rm -rf {0}".format(os.path.join(base_dir, "*TEMP*.npy")))
+    # os.system("rm -rf {0}".format(os.path.join(base_dir, "*TEMP*.npy")))
+    tmp_list = glob.glob(os.path.join(base_dir, "*TEMP*.npy"))
+    for f in tmp_list:
+        os.remove(f)
 
     # ---------[3] calculate the feature of each patch and then do some preprocessing with it
     feature = get_feature_from_dataset(hf_db_path, list(tif_input.keys()), s1_prefix=s1_key, s2_prefix=s2_key,
@@ -676,7 +690,10 @@ def pred_height_from_tiff_ML(x_min, y_min, x_max, y_max, out_file, tif_ref, patc
     height_ds.FlushCache()
     height_ds = None
 
-    os.system("rm -rf {0}".format(os.path.join(base_dir, "*TEMP*")))
+    # os.system("rm -rf {0}".format(os.path.join(base_dir, "*TEMP*")))
+    tmp_list = glob.glob(os.path.join(base_dir, "*TEMP*"))
+    for f in tmp_list:
+        os.remove(f)
 
 
 def pred_height_from_tiff_DL_patch(extent: list, out_file: str, tif_ref: dict, patch_size: list, predictor: str, trained_record: str,
@@ -849,7 +866,8 @@ def pred_height_from_tiff_DL_patch(extent: list, out_file: str, tif_ref: dict, p
             s1_input = tif_ref[aggregate_key][s1_key]
 
         s1_input_tif = os.path.join(base_dir, "@".join([aggregate_key, s1_key, "TEMP"]) + str(tmp_suffix or '') + ".tif")
-        os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s1_input), s1_input_tif))
+        # os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s1_input), s1_input_tif))
+        gdal.Warp(destNameOrDestDS=s1_input_tif, srcDSOrSrcDSTab=s1_input, options=gdal.WarpOptions(outputBounds=target_extent))
         tif_input[aggregate_key][s1_key] = s1_input_tif
 
         if not isinstance(tif_ref[aggregate_key][s2_key], list):
@@ -858,7 +876,8 @@ def pred_height_from_tiff_DL_patch(extent: list, out_file: str, tif_ref: dict, p
             s2_input = tif_ref[aggregate_key][s2_key]
 
         s2_input_tif = os.path.join(base_dir, "@".join([aggregate_key, s2_key, "TEMP"]) + str(tmp_suffix or '') + ".tif")
-        os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s2_input), s2_input_tif))
+        # os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s2_input), s2_input_tif))
+        gdal.Warp(destNameOrDestDS=s2_input_tif, srcDSOrSrcDSTab=s2_input, options=gdal.WarpOptions(outputBounds=target_extent))
         tif_input[aggregate_key][s2_key] = s2_input_tif
 
     # ----------store the value of TiffArray into a dict in advance where the key is its file name
@@ -905,7 +924,8 @@ def pred_height_from_tiff_DL_patch(extent: list, out_file: str, tif_ref: dict, p
                 aux_feat_input = aux_feat_info[feat]["path"]
             
             aux_feat_input_tif = os.path.join(base_dir, "@".join([aggregate_key, feat, "TEMP"]) + str(tmp_suffix or '') + ".tif")
-            os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(aux_feat_input), aux_feat_input_tif))
+            # os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(aux_feat_input), aux_feat_input_tif))
+            gdal.Warp(destNameOrDestDS=aux_feat_input_tif, srcDSOrSrcDSTab=aux_feat_input, options=gdal.WarpOptions(outputBounds=target_extent))
             tiffArr[feat] = GetArrayFromTiff(aux_feat_input_tif)
             tiffGeoTransform[feat] = GetGeoTransformFromTiff(aux_feat_input_tif)
 
@@ -1251,7 +1271,8 @@ def pred_height_from_tiff_DL_patch_MTL(extent: list, out_footprint_file: str, ou
             s1_input = tif_ref[aggregate_key][s1_key]
 
         s1_input_tif = os.path.join(base_dir, "@".join([aggregate_key, s1_key, "TEMP"]) + str(tmp_suffix or '') + ".tif")
-        os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s1_input), s1_input_tif))
+        # os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s1_input), s1_input_tif))
+        gdal.Warp(destNameOrDestDS=s1_input_tif, srcDSOrSrcDSTab=s1_input, options=gdal.WarpOptions(outputBounds=target_extent))
         tif_input[aggregate_key][s1_key] = s1_input_tif
 
         if not isinstance(tif_ref[aggregate_key][s2_key], list):
@@ -1260,7 +1281,8 @@ def pred_height_from_tiff_DL_patch_MTL(extent: list, out_footprint_file: str, ou
             s2_input = tif_ref[aggregate_key][s2_key]
 
         s2_input_tif = os.path.join(base_dir, "@".join([aggregate_key, s2_key, "TEMP"]) + str(tmp_suffix or '') + ".tif")
-        os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s2_input), s2_input_tif))
+        # os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(s2_input), s2_input_tif))
+        gdal.Warp(destNameOrDestDS=s2_input_tif, srcDSOrSrcDSTab=s2_input, options=gdal.WarpOptions(outputBounds=target_extent))
         tif_input[aggregate_key][s2_key] = s2_input_tif
 
     # ----------store the value of TiffArray into a dict in advance where the key is its file name
@@ -1307,7 +1329,8 @@ def pred_height_from_tiff_DL_patch_MTL(extent: list, out_footprint_file: str, ou
                 aux_feat_input = aux_feat_info[feat]["path"]
             
             aux_feat_input_tif = os.path.join(base_dir, "@".join([aggregate_key, feat, "TEMP"]) + str(tmp_suffix or '') + ".tif")
-            os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(aux_feat_input), aux_feat_input_tif))
+            # os.system("gdalwarp -te {0} {1} {2}".format(" ".join([str(cc) for cc in target_extent]), " ".join(aux_feat_input), aux_feat_input_tif))
+            gdal.Warp(destNameOrDestDS=aux_feat_input_tif, srcDSOrSrcDSTab=aux_feat_input, options=gdal.WarpOptions(outputBounds=target_extent))
             tiffArr[feat] = GetArrayFromTiff(aux_feat_input_tif)
             tiffGeoTransform[feat] = GetGeoTransformFromTiff(aux_feat_input_tif)
 
@@ -1593,6 +1616,9 @@ if __name__ == "__main__":
                                        log_scale=args.log_scale, cuda_used=args.cuda_used,
                                        v_min=v_min[0], v_max=v_max[0])
 
-    os.system("rm -rf {0}/*".format(args.tmp_dir))
+    # os.system("rm -rf {0}/*".format(args.tmp_dir))
+    tmp_list = glob.glob(os.path.join(args.tmp_dir, "*TEMP*"))
+    for f in tmp_list:
+        os.remove(f)
 
 

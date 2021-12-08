@@ -1,5 +1,5 @@
 # -*- makefile -*-
-.PHONY: main clean test pip shaft
+.PHONY: main clean pip shaft
 
 # OS-specific configurations
 ifeq ($(OS),Windows_NT)
