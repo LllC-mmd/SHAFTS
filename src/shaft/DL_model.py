@@ -5,7 +5,24 @@ from DL_module import *
 
 # ************************* Backbones *************************
 class ResNetBackbone(nn.Module):
-    def __init__(self, input_channels, input_size, in_plane=64, num_block=2):
+    def __init__(self, input_channels: int, input_size: int, in_plane=64, num_block=2):
+        """Initializer for the backbone of ResNet.
+
+        Parameters
+        ----------
+
+        input_channels : int
+            Number of input channels.
+        input_size : int
+            Size of input patches.
+        in_plane : int
+            Number of output channels after the initial convolutional layer.
+            The default is `64`.
+        num_block : int
+            Number of ResBlocks in each ResLayer.
+            The default is `2`.
+
+        """
         super(ResNetBackbone, self).__init__()
 
         self.in_plane = in_plane
@@ -46,7 +63,21 @@ class ResNetBackbone(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
-    def _make_layer(self, num_plane, blocks, stride=1):
+    def _make_layer(self, num_plane: int, blocks: int, stride=1):
+        """Generator for ResLayers.
+
+        Parameters
+        ----------
+
+        num_plane : int
+            Number of output channels.
+        blocks : int
+            Number of ResBlocks in the ResLayer.
+        stride : int
+            Stride for the convolution operation used in the initial ResBlock.
+            The default is `1`.
+
+        """
         downsample = None
         if (stride != 1) or (self.in_plane != num_plane):
             downsample = nn.Sequential(
@@ -74,7 +105,24 @@ class ResNetBackbone(nn.Module):
 
 
 class SENetBackbone(nn.Module):
-    def __init__(self, input_channels, input_size, in_plane=64, num_block=2):
+    def __init__(self, input_channels: int, input_size: int, in_plane=64, num_block=2):
+        """Initializer for the backbone of SENet.
+
+        Parameters
+        ----------
+
+        input_channels : int
+            Number of input channels.
+        input_size : int
+            Size of input patches.
+        in_plane : int
+            Number of output channels after the initial convolutional layer.
+            The default is `64`.
+        num_block : int
+            Number of SEBlocks in each SELayer.
+            The default is `2`.
+
+        """
         super(SENetBackbone, self).__init__()
         self.in_plane = in_plane
         #self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=3, stride=1, padding=1, bias=False)
@@ -114,7 +162,21 @@ class SENetBackbone(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
-    def _make_layer(self, num_plane, blocks, stride=1):
+    def _make_layer(self, num_plane: int, blocks: int, stride=1):
+        """Generator for SELayers.
+
+        Parameters
+        ----------
+
+        num_plane : int
+            Number of output channels.
+        blocks : int
+            Number of SEBlocks in the SELayer.
+        stride : int
+            Stride for the convolution operation used in the initial SEBlock.
+            The default is `1`.
+
+        """
         downsample = None
         if (stride != 1) or (self.in_plane != num_plane):
             downsample = nn.Sequential(
@@ -142,7 +204,24 @@ class SENetBackbone(nn.Module):
 
 
 class CBAMBackbone(nn.Module):
-    def __init__(self, input_channels, input_size, in_plane=64, num_block=2):
+    def __init__(self, input_channels: int, input_size: int, in_plane=64, num_block=2):
+        """Initializer for the backbone of CBAM.
+
+        Parameters
+        ----------
+
+        input_channels : int
+            Number of input channels.
+        input_size : int
+            Size of input patches.
+        in_plane : int
+            Number of output channels after the initial convolutional layer.
+            The default is `64`.
+        num_block : int
+            Number of CBAMBlocks in each CBAMLayer.
+            The default is `2`.
+
+        """
         super(CBAMBackbone, self).__init__()
         self.in_plane = in_plane
         #self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=3, stride=1, padding=1, bias=False)
@@ -182,7 +261,21 @@ class CBAMBackbone(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
-    def _make_layer(self, num_plane, blocks, stride=1):
+    def _make_layer(self, num_plane: int, blocks: int, stride=1):
+        """Generator for CBAMLayers.
+
+        Parameters
+        ----------
+
+        num_plane : int
+            Number of output channels.
+        blocks : int
+            Number of CBAMBlocks in the CBAMLayer.
+        stride : int
+            Stride for the convolution operation used in the initial CBAMBlock.
+            The default is `1`.
+
+        """
         downsample = None
         if (stride != 1) or (self.in_plane != num_plane):
             downsample = nn.Sequential(
@@ -211,7 +304,36 @@ class CBAMBackbone(nn.Module):
 
 # ************************* CNNs *************************
 class BuildingNet(nn.Module):
-    def __init__(self, input_channels, input_size, backbone, in_plane=64, num_block=3, log_scale=False, activation="relu", cuda_used=True, **kwargs):
+    def __init__(self, input_channels: int, input_size: int, backbone: str, in_plane=64, num_block=2, log_scale=False, activation="relu", cuda_used=True, **kwargs):
+        """Initializer for CNN trained by Single Task Learning (STL) for 3D building information extraction.
+
+        Parameters
+        ----------
+
+        input_channels : int
+            Number of input channels.
+        input_size : int
+            Size of input patches.
+        backbone : str
+            Name of CNN's backbone for feature extraction.
+            It can be chosen from: `ResNet`, `SENet`, `CBAM`.
+        in_plane : int
+            Number of output channels after the initial convolutional layer.
+            The default is `64`.
+        num_block : int
+            Number of CNNBlocks in each CNNLayer.
+            The default is `2`.
+        log_scale : boolean
+            A flag which controls whether log-transformation is used for output.
+            The default is `False`.
+        activation : str
+            Activation function for model output.
+            It can be chosen from: `relu`, `sigmoid`. The default is `relu`.
+        cuda_used : boolean
+            A flag which controls whether CUDA is used for inference.
+            The default is `False`.
+
+        """
         super(BuildingNet, self).__init__()
         self.cuda_used = cuda_used
         if backbone == "ResNet":
@@ -239,10 +361,6 @@ class BuildingNet(nn.Module):
         else:
             num_plane = int(in_plane * math.pow(2, num_reduce))
 
-        #self.fc = nn.Linear(num_plane, in_plane)
-        # self.bn_out = nn.BatchNorm1d(in_plane)
-        # self.drop_out = nn.Dropout(p=0.5)
-        #self.fc_out = nn.Linear(in_plane, 1)
         self.fc = nn.Linear(num_plane, int(num_plane / 2))
         self.bn_out = nn.BatchNorm1d(int(num_plane / 2))
         self.fc_out = nn.Linear(int(num_plane / 2), 1)
@@ -282,7 +400,16 @@ class BuildingNet(nn.Module):
 
         return x
 
-    def load_pretrained_model(self, trained_record):
+    def load_pretrained_model(self, trained_record: str):
+        """Load pretrained models.
+
+        Parameters
+        ----------
+
+        trained_record : str
+            Path to the pretrained model file.
+        
+        """
         if self.cuda_used:
             checkpoint = torch.load(trained_record)
         else:
@@ -305,7 +432,41 @@ class BuildingNet(nn.Module):
 
 
 class BuildingNet_aux(nn.Module):
-    def __init__(self, input_channels, input_size, aux_input_size, backbone, in_plane=64, num_aux=1, num_block=3, log_scale=False, activation="relu", cuda_used=True, **kwargs):
+    def __init__(self, input_channels: int, input_size: int, aux_input_size: int, backbone: str, in_plane=64, num_aux=1, num_block=2, log_scale=False, activation="relu", cuda_used=True, **kwargs):
+        """Initializer for CNN trained by Single Task Learning (STL) for 3D building information extraction with auxiliary input information.
+
+        Parameters
+        ----------
+
+        input_channels : int
+            Number of input channels.
+        input_size : int
+            Size of Sentinel's input patches.
+        aux_input_size : int
+            Size of auxiliary input patches.
+        backbone : str
+            Name of CNN's backbone for feature extraction.
+            It can be chosen from: `ResNet`, `SENet`, `CBAM`.
+        in_plane : int
+            Number of output channels after the initial convolutional layer.
+            The default is `64`.
+        num_aux : int
+            Number of auxiliary variables.
+            The default is `1`.
+        num_block : int
+            Number of CNNBlocks in each CNNLayer.
+            The default is `2`.
+        log_scale : boolean
+            A flag which controls whether log-transformation is used for output.
+            The default is `False`.
+        activation : str
+            Activation function for model output.
+            It can be chosen from: `relu`, `sigmoid`. The default is `relu`.
+        cuda_used : boolean
+            A flag which controls whether CUDA is used for inference.
+            The default is `False`.
+
+        """
         super(BuildingNet_aux, self).__init__()
         self.cuda_used = cuda_used
         if backbone == "ResNet":
@@ -391,7 +552,16 @@ class BuildingNet_aux(nn.Module):
 
         return x
 
-    def load_pretrained_model(self, trained_record):
+    def load_pretrained_model(self, trained_record: str):
+        """Load pretrained models.
+
+        Parameters
+        ----------
+
+        trained_record : str
+            Path to the pretrained model file.
+        
+        """
         if self.cuda_used:
             checkpoint = torch.load(trained_record)
         else:
@@ -421,7 +591,36 @@ class BuildingNet_aux(nn.Module):
 
 # ************************* CNNs in their Multi-Task Learning version *************************
 class BuildingNetMTL(nn.Module):
-    def __init__(self, input_channels, input_size, backbone, in_plane=64, num_block=3, crossed=False, log_scale=False, cuda_used=True, **kwargs):
+    def __init__(self, input_channels: int, input_size: int, backbone: str, in_plane=64, num_block=2, crossed=False, log_scale=False, cuda_used=True, **kwargs):
+        """Initializer for CNN trained by Multi-Task Learning (MTL) for 3D building information extraction.
+
+        Parameters
+        ----------
+
+        input_channels : int
+            Number of input channels.
+        input_size : int
+            Size of input patches.
+        backbone : str
+            Name of CNN's backbone for feature extraction.
+            It can be chosen from: `ResNet`, `SENet`, `CBAM`.
+        in_plane : int
+            Number of output channels after the initial convolutional layer.
+            The default is `64`.
+        num_block : int
+            Number of CNNBlocks in each CNNLayer.
+            The default is `2`.
+        crossed : boolean
+            A flag which controls whether a link is to be added between last fully-connected layers of building footprint and height prediction.
+            The default is `False`.
+        log_scale : boolean
+            A flag which controls whether log-transformation is used for output.
+            The default is `False`.
+        cuda_used : boolean
+            A flag which controls whether CUDA is used for inference.
+            The default is `False`.
+
+        """
         super(BuildingNetMTL, self).__init__()
         self.crossed = crossed
         self.cuda_used = cuda_used
@@ -451,16 +650,10 @@ class BuildingNetMTL(nn.Module):
         else:
             num_plane = int(in_plane * math.pow(2, num_reduce))
 
-        #self.fc_height = nn.Linear(num_plane, in_plane)
-        # self.drop_out_height = nn.Dropout(p=0.5)
-        #self.fc_out_height = nn.Linear(in_plane, 1)
         self.fc_height = nn.Linear(num_plane, int(num_plane / 2))
         self.bn_out_height = nn.BatchNorm1d(int(num_plane / 2))
         self.fc_out_height = nn.Linear(int(num_plane / 2), 1)
 
-        #self.fc_footprint = nn.Linear(num_plane, in_plane)
-        # self.drop_out_footprint = nn.Dropout(p=0.5)
-        #self.fc_out_footprint = nn.Linear(in_plane, 1)
         self.fc_footprint = nn.Linear(num_plane, int(num_plane / 2))
         self.bn_out_footprint = nn.BatchNorm1d(int(num_plane / 2))
         self.fc_out_footprint = nn.Linear(int(num_plane / 2), 1)
@@ -503,7 +696,16 @@ class BuildingNetMTL(nn.Module):
 
         return footprint, height
 
-    def load_pretrained_model(self, trained_record):
+    def load_pretrained_model(self, trained_record: str):
+        """Load pretrained models.
+
+        Parameters
+        ----------
+
+        trained_record : str
+            Path to the pretrained model file.
+        
+        """
         if self.cuda_used:
             checkpoint = torch.load(trained_record)
         else:
@@ -526,7 +728,41 @@ class BuildingNetMTL(nn.Module):
 
 
 class BuildingNetMTL_aux(nn.Module):
-    def __init__(self, input_channels, input_size, aux_input_size, backbone, in_plane=64, num_aux=1, num_block=3, crossed=False, log_scale=False, cuda_used=True, **kwargs):
+    def __init__(self, input_channels: int, input_size: int, aux_input_size: int, backbone: str, in_plane=64, num_aux=1, num_block=2, crossed=False, log_scale=False, cuda_used=True, **kwargs):
+        """Initializer for CNN trained by Multi-Task Learning (MTL) for 3D building information extraction with auxiliary input information.
+
+        Parameters
+        ----------
+
+        input_channels : int
+            Number of input channels.
+        input_size : int
+            Size of Sentinel's input patches.
+        aux_input_size : int
+            Size of auxiliary input patches.
+        backbone : str
+            Name of CNN's backbone for feature extraction.
+            It can be chosen from: `ResNet`, `SENet`, `CBAM`.
+        in_plane : int
+            Number of output channels after the initial convolutional layer.
+            The default is `64`.
+        num_aux : int
+            Number of auxiliary variables.
+            The default is `1`.
+        num_block : int
+            Number of CNNBlocks in each CNNLayer.
+            The default is `2`.
+        crossed : boolean
+            A flag which controls whether a link is to be added between last fully-connected layers of building footprint and height prediction.
+            The default is `False`.
+        log_scale : boolean
+            A flag which controls whether log-transformation is used for output.
+            The default is `False`.
+        cuda_used : boolean
+            A flag which controls whether CUDA is used for inference.
+            The default is `False`.
+
+        """
         super(BuildingNetMTL_aux, self).__init__()
         self.crossed = crossed
         self.cuda_used = cuda_used
@@ -621,7 +857,16 @@ class BuildingNetMTL_aux(nn.Module):
 
         return footprint, height
 
-    def load_pretrained_model(self, trained_record):
+    def load_pretrained_model(self, trained_record: str):
+        """Load pretrained models.
+
+        Parameters
+        ----------
+
+        trained_record : str
+            Path to the pretrained model file.
+        
+        """
         if self.cuda_used:
             checkpoint = torch.load(trained_record)
         else:
@@ -650,7 +895,31 @@ class BuildingNetMTL_aux(nn.Module):
 
 
 # ************************* CNN instances using ResNet as backbones *************************
-def model_ResNet(input_channels, input_size, in_plane, num_block, log_scale=False, activation="relu", cuda_used=True, **kwargs):
+def model_ResNet(input_channels: int, input_size: int, in_plane: int, num_block: int, log_scale=False, activation="relu", cuda_used=False, **kwargs) -> BuildingNet:
+    """Prepare ResNet-STL for 3D building information extraction.
+
+    Parameters
+    ----------
+
+    input_channels : int
+        Number of input channels.
+    input_size : int
+        Size of input patches.
+    in_plane : int
+        Number of output channels after the initial convolutional layer.
+    num_block : int
+        Number of ResBlocks in each ResLayer.
+    log_scale : boolean
+        A flag which controls whether log-transformation is used for output.
+        The default is `False`.
+    activation : str
+        Activation function for model output.
+        It can be chosen from: `relu`, `sigmoid`. The default is `relu`.
+    cuda_used : boolean
+        A flag which controls whether CUDA is used for inference.
+        The default is `False`.
+
+    """
     if "trained_record" in kwargs.keys():
         trained_record = kwargs["trained_record"]
     else:
@@ -664,7 +933,36 @@ def model_ResNet(input_channels, input_size, in_plane, num_block, log_scale=Fals
     return model
 
 
-def model_ResNet_aux(input_channels, input_size, aux_input_size, in_plane, num_block, num_aux=1, log_scale=False, activation="relu", cuda_used=True, **kwargs):
+def model_ResNet_aux(input_channels: int, input_size: int, aux_input_size: int, in_plane: int, num_block: int, num_aux=1, log_scale=False, activation="relu", cuda_used=False, **kwargs) -> BuildingNet_aux:
+    """Prepare ResNet-STL using auxiliary input information for 3D building information extraction.
+
+    Parameters
+    ----------
+
+    input_channels : int
+        Number of input channels.
+    input_size : int
+        Size of input patches.
+    aux_input_size : int
+        Size of auxiliary input patches.
+    in_plane : int
+        Number of output channels after the initial convolutional layer.
+    num_block : int
+        Number of ResBlocks in each ResLayer.
+    num_aux : int
+        Number of auxiliary variables.
+        The default is `1`.
+    log_scale : boolean
+        A flag which controls whether log-transformation is used for output.
+        The default is `False`.
+    activation : str
+        Activation function for model output.
+        It can be chosen from: `relu`, `sigmoid`. The default is `relu`.
+    cuda_used : boolean
+        A flag which controls whether CUDA is used for inference.
+        The default is `False`.
+
+    """
     if "trained_record" in kwargs.keys():
         trained_record = kwargs["trained_record"]
     else:
@@ -679,7 +977,31 @@ def model_ResNet_aux(input_channels, input_size, aux_input_size, in_plane, num_b
     return model
 
 
-def model_ResNetMTL(input_channels, input_size, in_plane, num_block, crossed=False, log_scale=False, cuda_used=True, **kwargs):
+def model_ResNetMTL(input_channels: int, input_size: int, in_plane: int, num_block: int, crossed=False, log_scale=False, cuda_used=False, **kwargs) -> BuildingNetMTL:
+    """Prepare ResNet-MTL using auxiliary input information for 3D building information extraction.
+
+    Parameters
+    ----------
+
+    input_channels : int
+        Number of input channels.
+    input_size : int
+        Size of input patches.
+    in_plane : int
+        Number of output channels after the initial convolutional layer.
+    num_block : int
+        Number of ResBlocks in each ResLayer.
+    crossed : boolean
+        A flag which controls whether a link is to be added between last fully-connected layers of building footprint and height prediction.
+        The default is `False`.
+    log_scale : boolean
+        A flag which controls whether log-transformation is used for output.
+        The default is `False`.
+    cuda_used : boolean
+        A flag which controls whether CUDA is used for inference.
+        The default is `False`.
+
+    """
     if "trained_record" in kwargs.keys():
         trained_record = kwargs["trained_record"]
     else:
@@ -694,7 +1016,36 @@ def model_ResNetMTL(input_channels, input_size, in_plane, num_block, crossed=Fal
     return model
 
 
-def model_ResNetMTL_aux(input_channels, input_size, aux_input_size, in_plane, num_block, num_aux=1, crossed=False, log_scale=False, cuda_used=True, **kwargs):
+def model_ResNetMTL_aux(input_channels: int, input_size: int, aux_input_size: int, in_plane: int, num_block: int, num_aux=1, crossed=False, log_scale=False, cuda_used=False, **kwargs) -> BuildingNetMTL_aux:
+    """Prepare ResNet-MTL using auxiliary input information for 3D building information extraction.
+
+    Parameters
+    ----------
+
+    input_channels : int
+        Number of input channels.
+    input_size : int
+        Size of input patches.
+    aux_input_size : int
+        Size of auxiliary input patches.
+    in_plane : int
+        Number of output channels after the initial convolutional layer.
+    num_block : int
+        Number of ResBlocks in each ResLayer.
+    num_aux : int
+        Number of auxiliary variables.
+        The default is `1`.
+    crossed : boolean
+        A flag which controls whether a link is to be added between last fully-connected layers of building footprint and height prediction.
+        The default is `False`.
+    log_scale : boolean
+        A flag which controls whether log-transformation is used for output.
+        The default is `False`.
+    cuda_used : boolean
+        A flag which controls whether CUDA is used for inference.
+        The default is `False`.
+
+    """
     if "trained_record" in kwargs.keys():
         trained_record = kwargs["trained_record"]
     else:
@@ -710,7 +1061,31 @@ def model_ResNetMTL_aux(input_channels, input_size, aux_input_size, in_plane, nu
 
 
 # ************************* CNN instances using SENet as backbones *************************
-def model_SEResNet(input_channels, input_size, in_plane, num_block, log_scale=False, activation="relu", cuda_used=True, **kwargs):
+def model_SEResNet(input_channels: int, input_size: int, in_plane: int, num_block: int, log_scale=False, activation="relu", cuda_used=False, **kwargs) -> BuildingNet:
+    """Prepare SENet-STL for 3D building information extraction.
+
+    Parameters
+    ----------
+
+    input_channels : int
+        Number of input channels.
+    input_size : int
+        Size of input patches.
+    in_plane : int
+        Number of output channels after the initial convolutional layer.
+    num_block : int
+        Number of SEBlocks in each SELayer.
+    log_scale : boolean
+        A flag which controls whether log-transformation is used for output.
+        The default is `False`.
+    activation : str
+        Activation function for model output.
+        It can be chosen from: `relu`, `sigmoid`. The default is `relu`.
+    cuda_used : boolean
+        A flag which controls whether CUDA is used for inference.
+        The default is `False`.
+
+    """
     if "trained_record" in kwargs.keys():
         trained_record = kwargs["trained_record"]
     else:
@@ -724,7 +1099,36 @@ def model_SEResNet(input_channels, input_size, in_plane, num_block, log_scale=Fa
     return model
 
 
-def model_SEResNet_aux(input_channels, input_size, aux_input_size, in_plane, num_block, num_aux=1, log_scale=False, activation="relu", cuda_used=True, **kwargs):
+def model_SEResNet_aux(input_channels: int, input_size: int, aux_input_size: int, in_plane: int, num_block: int, num_aux=1, log_scale=False, activation="relu", cuda_used=False, **kwargs) -> BuildingNet_aux:
+    """Prepare SENet-STL using auxiliary input information for 3D building information extraction.
+
+    Parameters
+    ----------
+
+    input_channels : int
+        Number of input channels.
+    input_size : int
+        Size of input patches.
+    aux_input_size : int
+        Size of auxiliary input patches.
+    in_plane : int
+        Number of output channels after the initial convolutional layer.
+    num_block : int
+        Number of SEBlocks in each SELayer.
+    num_aux : int
+        Number of auxiliary variables.
+        The default is `1`.
+    log_scale : boolean
+        A flag which controls whether log-transformation is used for output.
+        The default is `False`.
+    activation : str
+        Activation function for model output.
+        It can be chosen from: `relu`, `sigmoid`. The default is `relu`.
+    cuda_used : boolean
+        A flag which controls whether CUDA is used for inference.
+        The default is `False`.
+
+    """
     if "trained_record" in kwargs.keys():
         trained_record = kwargs["trained_record"]
     else:
@@ -739,7 +1143,31 @@ def model_SEResNet_aux(input_channels, input_size, aux_input_size, in_plane, num
     return model
 
 
-def model_SEResNetMTL(input_channels, input_size, in_plane, num_block, crossed=False, log_scale=False, cuda_used=True, **kwargs):
+def model_SEResNetMTL(input_channels: int, input_size: int, in_plane: int, num_block: int, crossed=False, log_scale=False, cuda_used=False, **kwargs) -> BuildingNetMTL:
+    """Prepare SENet-MTL using auxiliary input information for 3D building information extraction.
+
+    Parameters
+    ----------
+
+    input_channels : int
+        Number of input channels.
+    input_size : int
+        Size of input patches.
+    in_plane : int
+        Number of output channels after the initial convolutional layer.
+    num_block : int
+        Number of SEBlocks in each SELayer.
+    crossed : boolean
+        A flag which controls whether a link is to be added between last fully-connected layers of building footprint and height prediction.
+        The default is `False`.
+    log_scale : boolean
+        A flag which controls whether log-transformation is used for output.
+        The default is `False`.
+    cuda_used : boolean
+        A flag which controls whether CUDA is used for inference.
+        The default is `False`.
+
+    """
     if "trained_record" in kwargs.keys():
         trained_record = kwargs["trained_record"]
     else:
@@ -754,7 +1182,36 @@ def model_SEResNetMTL(input_channels, input_size, in_plane, num_block, crossed=F
     return model
 
 
-def model_SEResNetMTL_aux(input_channels, input_size, aux_input_size, in_plane, num_block, num_aux=1, crossed=False, log_scale=False, cuda_used=True, **kwargs):
+def model_SEResNetMTL_aux(input_channels: int, input_size: int, aux_input_size: int, in_plane: int, num_block: int, num_aux=1, crossed=False, log_scale=False, cuda_used=False, **kwargs) -> BuildingNetMTL_aux:
+    """Prepare SENet-MTL using auxiliary input information for 3D building information extraction.
+
+    Parameters
+    ----------
+
+    input_channels : int
+        Number of input channels.
+    input_size : int
+        Size of input patches.
+    aux_input_size : int
+        Size of auxiliary input patches.
+    in_plane : int
+        Number of output channels after the initial convolutional layer.
+    num_block : int
+        Number of SEBlocks in each SELayer.
+    num_aux : int
+        Number of auxiliary variables.
+        The default is `1`.
+    crossed : boolean
+        A flag which controls whether a link is to be added between last fully-connected layers of building footprint and height prediction.
+        The default is `False`.
+    log_scale : boolean
+        A flag which controls whether log-transformation is used for output.
+        The default is `False`.
+    cuda_used : boolean
+        A flag which controls whether CUDA is used for inference.
+        The default is `False`.
+
+    """
     if "trained_record" in kwargs.keys():
         trained_record = kwargs["trained_record"]
     else:
@@ -770,7 +1227,31 @@ def model_SEResNetMTL_aux(input_channels, input_size, aux_input_size, in_plane, 
 
 
 # ************************* CNN instances using CBAM as backbones *************************
-def model_CBAMResNet(input_channels, input_size, in_plane, num_block, log_scale=False, activation="relu", cuda_used=True, **kwargs):
+def model_CBAMResNet(input_channels: int, input_size: int, in_plane: int, num_block: int, log_scale=False, activation="relu", cuda_used=False, **kwargs) -> BuildingNet:
+    """Prepare CBAM-STL for 3D building information extraction.
+
+    Parameters
+    ----------
+
+    input_channels : int
+        Number of input channels.
+    input_size : int
+        Size of input patches.
+    in_plane : int
+        Number of output channels after the initial convolutional layer.
+    num_block : int
+        Number of CBAMBlocks in each CBAMLayer.
+    log_scale : boolean
+        A flag which controls whether log-transformation is used for output.
+        The default is `False`.
+    activation : str
+        Activation function for model output.
+        It can be chosen from: `relu`, `sigmoid`. The default is `relu`.
+    cuda_used : boolean
+        A flag which controls whether CUDA is used for inference.
+        The default is `False`.
+
+    """
     if "trained_record" in kwargs.keys():
         trained_record = kwargs["trained_record"]
     else:
@@ -784,7 +1265,36 @@ def model_CBAMResNet(input_channels, input_size, in_plane, num_block, log_scale=
     return model
 
 
-def model_CBAMResNet_aux(input_channels, input_size, aux_input_size, in_plane, num_block, num_aux=1, log_scale=False, activation="relu", cuda_used=True, **kwargs):
+def model_CBAMResNet_aux(input_channels: int, input_size: int, aux_input_size: int, in_plane: int, num_block: int, num_aux=1, log_scale=False, activation="relu", cuda_used=False, **kwargs) -> BuildingNet_aux:
+    """Prepare CBAM-STL using auxiliary input information for 3D building information extraction.
+
+    Parameters
+    ----------
+
+    input_channels : int
+        Number of input channels.
+    input_size : int
+        Size of input patches.
+    aux_input_size : int
+        Size of auxiliary input patches.
+    in_plane : int
+        Number of output channels after the initial convolutional layer.
+    num_block : int
+        Number of CBAMBlocks in each CBAMLayer.
+    num_aux : int
+        Number of auxiliary variables.
+        The default is `1`.
+    log_scale : boolean
+        A flag which controls whether log-transformation is used for output.
+        The default is `False`.
+    activation : str
+        Activation function for model output.
+        It can be chosen from: `relu`, `sigmoid`. The default is `relu`.
+    cuda_used : boolean
+        A flag which controls whether CUDA is used for inference.
+        The default is `False`.
+
+    """
     if "trained_record" in kwargs.keys():
         trained_record = kwargs["trained_record"]
     else:
@@ -799,7 +1309,31 @@ def model_CBAMResNet_aux(input_channels, input_size, aux_input_size, in_plane, n
     return model
 
 
-def model_CBAMResNetMTL(input_channels, input_size, in_plane, num_block, crossed=False, log_scale=False, cuda_used=True, **kwargs):
+def model_CBAMResNetMTL(input_channels: int, input_size: int, in_plane: int, num_block: int, crossed=False, log_scale=False, cuda_used=True, **kwargs) -> BuildingNetMTL:
+    """Prepare CBAM-MTL using auxiliary input information for 3D building information extraction.
+
+    Parameters
+    ----------
+
+    input_channels : int
+        Number of input channels.
+    input_size : int
+        Size of input patches.
+    in_plane : int
+        Number of output channels after the initial convolutional layer.
+    num_block : int
+        Number of CBAMBlocks in each CBAMLayer.
+    crossed : boolean
+        A flag which controls whether a link is to be added between last fully-connected layers of building footprint and height prediction.
+        The default is `False`.
+    log_scale : boolean
+        A flag which controls whether log-transformation is used for output.
+        The default is `False`.
+    cuda_used : boolean
+        A flag which controls whether CUDA is used for inference.
+        The default is `False`.
+
+    """
     if "trained_record" in kwargs.keys():
         trained_record = kwargs["trained_record"]
     else:
@@ -814,7 +1348,36 @@ def model_CBAMResNetMTL(input_channels, input_size, in_plane, num_block, crossed
     return model
 
 
-def model_CBAMResNetMTL_aux(input_channels, input_size, aux_input_size, in_plane, num_block, num_aux=1, crossed=False, log_scale=False, cuda_used=True, **kwargs):
+def model_CBAMResNetMTL_aux(input_channels: int, input_size: int, aux_input_size: int, in_plane: int, num_block: int, num_aux=1, crossed=False, log_scale=False, cuda_used=True, **kwargs) -> BuildingNetMTL_aux:
+    """Prepare CBAM-MTL using auxiliary input information for 3D building information extraction.
+
+    Parameters
+    ----------
+
+    input_channels : int
+        Number of input channels.
+    input_size : int
+        Size of input patches.
+    aux_input_size : int
+        Size of auxiliary input patches.
+    in_plane : int
+        Number of output channels after the initial convolutional layer.
+    num_block : int
+        Number of CBAMBlocks in each CBAMLayer.
+    num_aux : int
+        Number of auxiliary variables.
+        The default is `1`.
+    crossed : boolean
+        A flag which controls whether a link is to be added between last fully-connected layers of building footprint and height prediction.
+        The default is `False`.
+    log_scale : boolean
+        A flag which controls whether log-transformation is used for output.
+        The default is `False`.
+    cuda_used : boolean
+        A flag which controls whether CUDA is used for inference.
+        The default is `False`.
+
+    """
     if "trained_record" in kwargs.keys():
         trained_record = kwargs["trained_record"]
     else:

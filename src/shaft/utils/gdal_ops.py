@@ -1,7 +1,9 @@
 import os
 import glob
-import json
 import math
+from re import sub
+import shutil
+import subprocess
 import multiprocessing
 import numpy as np
 import pandas as pd
@@ -25,13 +27,14 @@ def mergeShapefile(shp_dir, merged_shp):
     shp_files = [f for f in os.listdir(shp_dir) if f.endswith(".shp")]
     for f in shp_files:
         if os.path.exists(merged_shp):
-            os.system("ogr2ogr -f 'ESRI Shapefile' -update -append {0} {1}".format(merged_shp, os.path.join(shp_dir, f)))
+            # os.system("ogr2ogr -f 'ESRI Shapefile' -update -append {0} {1}".format(merged_shp, os.path.join(shp_dir, f)))
+            subprocess.run(["ogr2ogr", "-f", "'ESRI Shapefile'", "-update", "-append", merged_shp, os.path.join(shp_dir, f)])
         else:
             prefix = f.split(".")[0]
             suffix = [".dbf", ".prj", ".shp", ".shx"]
             dest_prefix = merged_shp.split(".")[0]
             for s in suffix:
-                os.system("cp {0} {1}".format(os.path.join(shp_dir, prefix + s), dest_prefix + s))
+                shutil.copyfile(os.path.join(shp_dir, prefix + s), dest_prefix + s)
 
 
 def BatchReprojectShapefile(shp_dir, target_epsg=4326):
@@ -40,7 +43,8 @@ def BatchReprojectShapefile(shp_dir, target_epsg=4326):
         shp_path = os.path.join(shp_dir, f)
         shp_base = os.path.splitext(f)[0]
         new_path = os.path.join(shp_dir, shp_base + "_" + str(target_epsg))
-        os.system("ogr2ogr -f 'ESRI Shapefile' -t_srs 'EPSG:{0}' {1} {2}".format(target_epsg, new_path, shp_path))
+        # os.system("ogr2ogr -f 'ESRI Shapefile' -t_srs 'EPSG:{0}' {1} {2}".format(target_epsg, new_path, shp_path))
+        subprocess.run(["ogr2ogr", "-f", "'ESRI Shapefile'", "-t_srs", "'EPSG:{0}'".format(target_epsg), new_path, shp_path])
 
 
 def BatchConvertShapefile(sample_csv, path_prefix=None, target_ext="gpkg"):
@@ -60,7 +64,8 @@ def BatchConvertShapefile(sample_csv, path_prefix=None, target_ext="gpkg"):
 
         target_path = os.path.join(shp_dir, shp_base + "." + target_ext)
         
-        os.system("ogr2ogr -f '{0}' {1} {2}".format(target_driver, target_path, shp_path))
+        # os.system("ogr2ogr -f '{0}' {1} {2}".format(target_driver, target_path, shp_path))
+        subprocess.run(["ogr2ogr", "-f", target_driver, target_path, shp_path])
 
 
 # ************************* Functional Scripts *************************
@@ -211,7 +216,7 @@ def getFootprintFromShape(building_shp: str, fishnet_shp: str, output_grid: str,
         If `building_shp` has no spatial coverage, `"EMPTY"` is returned.
 
     """
-    buiding_dir = os.path.dirname(building_shp)
+    building_dir = os.path.dirname(building_shp)
     # fishnet_name = os.path.join(buiding_dir, "_fishnet_{0}.shp".format(suffix))
     pid = output_grid[-6:-4]
 
@@ -233,7 +238,7 @@ def getFootprintFromShape(building_shp: str, fishnet_shp: str, output_grid: str,
         fishnet_layer = fishnet_ds.GetLayer()
 
         intersect_driver = ogr.GetDriverByName(shp_driver)
-        intersect_path = os.path.join(buiding_dir, "_intersect_{0}.{1}".format(suffix, shp_ext))
+        intersect_path = os.path.join(building_dir, "_intersect_{0}.{1}".format(suffix, shp_ext))
         if os.path.exists(intersect_path):
             os.remove(intersect_path)
         intersect_ds = intersect_driver.CreateDataSource(intersect_path)
@@ -274,7 +279,10 @@ def getFootprintFromShape(building_shp: str, fishnet_shp: str, output_grid: str,
 
         # ---------if reserve_flag is set to be True, we store intermediate results for further algorithm validation
         if not reserved:
-            os.system("rm {0}".format(os.path.join(buiding_dir, "_*")))
+            # os.system("rm {0}".format(os.path.join(buiding_dir, "_*")))
+            tmp_list = glob.glob(os.path.join(building_dir, "_*"))
+            for f in tmp_list:
+                os.remove(f)
         res = output_grid
     else:
         res = "EMPTY"
@@ -282,14 +290,39 @@ def getFootprintFromShape(building_shp: str, fishnet_shp: str, output_grid: str,
     return res
 
 
-def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=0.0009, reserved=False, num_cpu=1, shrink_deg=1e-6, identifier="NID"):
+def GetFootprintFromCSV(sample_csv: str, path_prefix=None, resolution=0.0009, reserved=False, num_cpu=1, shrink_deg=1e-6, identifier="NID"):
+    """Calculate building footprint density raster layers according to a .csv file.
+
+    Parameters
+    ----------
+
+    sample_csv : str
+        Path to the input .csv file which uses `City`, `SHP_Path`, `SRTM_Path`, `Year`, `BuildingHeightField`, `Unit` as columns.
+    path_prefix : str
+        Naming prefix to the path of files specified by `SHP_Path` and `SRTM_Path`.
+        The default is `None`.
+    resolution : float
+        Spatial resolution of output raster layer (in degrees).
+        The default is `0.0009`.
+    reserved : boolean
+        A flag which controls whether temporary files should be reserved after calculation
+        The default is `False`.
+    num_cpu : int
+        Number of expected processes to be run in parallel for the rasterization of building layer.
+        The default is `1`.
+    shrink_deg : float
+        A (negative) buffering distance for fixing invalid polygons.
+        The default is `1e-6`.
+    identifier : str
+        Name of the field which specifies the ID of each grid in the fishnet layer.
+        The default is `NID`.
+
+    """
     # ------get basic settings for parallel computing
-    '''
     num_cpu_available = multiprocessing.cpu_count()
     if num_cpu_available < num_cpu:
         print("Use %d CPUs which is available now" % num_cpu_available)
         num_cpu = num_cpu_available
-    '''
 
     n_sub = math.floor(math.sqrt(num_cpu))
 
@@ -404,7 +437,8 @@ def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=0.0009, reserve
             tmp_path = os.path.join(shp_dir, shp_base + "_temp.{0}".format(shp_ext))
             res_df.to_file(tmp_path, driver=shp_driver)
 
-            os.system("ogr2ogr {0} -t_srs 'EPSG:{1}' {2}".format(shp_projected_path, srtm_epsg, tmp_path))
+            # os.system("ogr2ogr {0} -t_srs 'EPSG:{1}' {2}".format(shp_projected_path, srtm_epsg, tmp_path))
+            subprocess.run(["ogr2ogr", shp_projected_path, "-t_srs", "'EPSG:{0}'".format(srtm_epsg), tmp_path])
             
         # ------Divide the whole region into sub-regions
         shp_ds = ogr.Open(shp_projected_path)
@@ -420,15 +454,6 @@ def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=0.0009, reserve
         x_max_list = np.array([x_min + (col_id_ref[i][-1]+1)*resolution for i in range(0, n_sub)])
         y_min_list = np.array([y_min + row_id_ref[i][0]*resolution for i in range(0, n_sub)])
         y_max_list = np.array([y_min + (row_id_ref[i][-1]+1)*resolution for i in range(0, n_sub)])
-
-        '''
-        dx = (x_max - x_min) / n_sub
-        dy = (y_max - y_min) / n_sub
-        x_min_list = np.array([x_min + i*dx for i in range(0, n_sub)])
-        x_max_list = x_min_list + dx
-        y_min_list = np.array([y_min + i*dy for i in range(0, n_sub)])
-        y_max_list = y_min_list + dy
-        '''
 
         subRegion_list = [os.path.join(shp_dir, shp_base + "_projected_{0}_temp_{1}.{2}".format(srtm_epsg, str(i)+str(j), shp_ext)) for i in range(0, n_sub) for j in range(0, n_sub)]
         output_list = [os.path.join(shp_dir, shp_base + "_building_footprint_temp_{0}.tif".format(str(i)+str(j))) for i in range(0, n_sub) for j in range(0, n_sub)]
@@ -446,7 +471,8 @@ def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=0.0009, reserve
                 # -----------some sub-region might be empty because no building is present in those grids
                 # -----------also, the bounding box would be narrowed automatically until it contains all of buildings
                 # -----------considering, we must specify the extent of our fishnet layer manually
-                os.system("ogr2ogr -f '{0}' -clipsrc {1} {2} {3}".format(shp_driver, " ".join([str(x) for x in extent]), subRegion_name, shp_projected_path))
+                # os.system("ogr2ogr -f '{0}' -clipsrc {1} {2} {3}".format(shp_driver, " ".join([str(x) for x in extent]), subRegion_name, shp_projected_path))
+                subprocess.run(["ogr2ogr", "-f", "'{0}'".format(shp_driver), "-clipsrc", " ".join([str(x) for x in extent]), subRegion_name, shp_projected_path])
                 arg_list.append((subRegion_name, fishnet_name, output_list[i*n_sub+j], resolution, 1.0, True, suffix, extent, shp_ext, shp_driver))
 
         # ------call the conversion function for each sub-regions
@@ -457,100 +483,72 @@ def GetFootprintFromCSV(sample_csv, path_prefix=None, resolution=0.0009, reserve
 
         # ------merge GeoTiff from sub-regions
         res_tiff_list = [i for i in res_list if i != "EMPTY"]
-        os.system("gdalwarp {0} {1}".format(" ".join(res_tiff_list), tiff_path))
+        # os.system("gdalwarp {0} {1}".format(" ".join(res_tiff_list), tiff_path))
+        gdal.Warp(destNameOrDestDS=tiff_path, srcDSOrSrcDSTab=res_tiff_list)
 
         if not reserved:
-            os.system("rm {0}".format(os.path.join(shp_dir, "*_temp*")))
-            os.system("rm {0}".format(os.path.join(shp_dir, "_*")))
+            # os.system("rm {0}".format(os.path.join(shp_dir, "*_temp*")))
+            tmp_list = glob.glob(os.path.join(shp_dir, "*_temp*"))
+            for f in tmp_list:
+                os.remove(f)
+            # os.system("rm {0}".format(os.path.join(shp_dir, "_*")))
+            tmp_list = glob.glob(os.path.join(shp_dir, "_*"))
+            for f in tmp_list:
+                os.remove(f)
 
         print("The building footprint map of {0} has been created at: {1}".format(city, tiff_path))
 
 
 # ************************* [2] Building Height *************************
-def getHeightFromShape(building_shp, fishnet_shp, output_grid, height_field, resolution=100.0, scale=1.0, noData=-1000000.0, reserved=False, suffix=None, extent=None, shp_ext="shp", shp_driver="ESRI Shapefile", identifier="NID"):
-    buiding_dir = os.path.dirname(building_shp)
-    # fishnet_name = os.path.join(buiding_dir, "_fishnet_{0}.shp".format(suffix))
-    pid = output_grid[-6:-4]
+def getHeightFromShape(building_shp, fishnet_shp, output_grid, height_field, resolution=0.0009, scale=1.0, noData=-1000000.0, reserved=False, suffix=None, extent=None, shp_ext="shp", shp_driver="ESRI Shapefile", identifier="NID"):
+    """Calculate building height raster layer from a building vector layer using fishnet analysis.
 
-    shp_ds = ogr.Open(building_shp)
-    shp_layer = shp_ds.GetLayer()
-    x_min, x_max, y_min, y_max = shp_layer.GetExtent()
-    input_proj = shp_layer.GetSpatialRef()
+    Parameters
+    ----------
 
-    num_row = int(np.ceil(round(round(y_max - y_min, 6) / resolution, 6)))
-    num_col = int(np.ceil(round(round(x_max - x_min, 6) / resolution, 6)))
+    building_shp : str
+        Path to the input building vector layer.
+    fishnet_shp : str
+        Path to the input fishnet layer.
+    output_grid : str
+        Output Path for the building footprint density raster layer.
+    height_field : str
+        Field in the attribute table of building vector layer which stores the building height information.
+    resolution : float
+        Spatial resolution of output raster layer (in degrees).
+    scale : float
+        A factor for unit conversion.
+        The default is `1.0`.
+    noData : float
+        NoData value for grids where no building is present.
+        The default is `-1000000.0`.
+    reserved : boolean
+        A flag which controls whether temporary files should be reserved after calculation
+        The default is `False`.
+    suffix : str
+        Suffix of the intersection file name.
+        The default is `None`.
+    extent : list
+        A list in the format `[x_min, y_min, x_max, y_max]` which specifies the extent of the fishnet layer.
+        The default is `None` and then the extent of the fishnet layer would be derived from `building_shp`.
+    shp_ext : str
+        File extensions of the input building vector layer and temporary intersection layer.
+        The default is `shp`.
+    shp_driver : str
+        OGR vector driver for reading `input_shp` and writing `output_grid`
+        The default is `ESRI Shapefile`.
+    identifier : str
+        Name of the field which specifies the ID of each grid in the fishnet layer.
+        The default is `NID`.
+    
+    Returns
+    -------
+    res: str
+        Path to the output building footprint density raster layer.
+        If `building_shp` has no spatial coverage, `"EMPTY"` is returned.
 
-    if num_col * num_row != 0:
-        # ------create FishNet layer for building Shapefile
-        # createFishNet(input_shp=building_shp, output_grid=fishnet_name, height=resolution, width=resolution, extent=extent)
-
-        # ------get the intersection part of building layer and FishNet layer
-        # ------the output layer contains segmented buildings using a field named "FID" marking which cell each part belongs to
-        fishnet_ds = ogr.Open(fishnet_shp)
-        fishnet_layer = fishnet_ds.GetLayer()
-
-        intersect_driver = ogr.GetDriverByName(shp_driver)
-        intersect_path = os.path.join(buiding_dir, "_intersect_{0}.{1}".format(suffix, shp_ext))
-        if os.path.exists(intersect_path):
-            os.remove(intersect_path)
-        intersect_ds = intersect_driver.CreateDataSource(intersect_path)
-        intersect_layer = intersect_ds.CreateLayer(pid, geom_type=ogr.wkbMultiPolygon)
-
-        shp_layer.Intersection(fishnet_layer, intersect_layer, ["METHOD_PREFIX=FN_"])
-
-        # ------calculate the average height of each cell in FishNet layer
-        # ---------height value is weighted by the area of each part
-        val_list = [[feature.GetField("FN_{0}".format(identifier)), feature.GetField(height_field), feature.GetGeometryRef().GetArea()] for feature in intersect_layer]
-
-        if extent is not None:
-            x_min, y_min, x_max, y_max = extent
-            num_row = int(np.ceil(round(round(y_max - y_min, 6) / resolution, 6)))
-            num_col = int(np.ceil(round(round(x_max - x_min, 6) / resolution, 6)))
-
-        height_arr = np.zeros(num_row*num_col)
-
-        for v in val_list:
-            # ---------sometimes the type of the specified field could be String
-            if v[1] is not None:
-                v[1] = max(float(v[1])*scale, 2.0)
-            else:
-                v[1] = 3.0
-            height_arr[v[0]] += v[1] * v[2]
-        height_arr = height_arr / (resolution * resolution)
-        # ------------if there is no building in the cell, set its value to noData value
-        # height_arr[np.isnan(height_arr)] = noData
-        height_arr[height_arr == 0.0] = noData
-
-        height_arr = height_arr.reshape((num_row, num_col))
-
-        driver = gdal.GetDriverByName("GTiff")
-        height_ds = driver.Create(output_grid, num_col, num_row, 1, gdal.GDT_Float64)
-        height_ds.GetRasterBand(1).WriteArray(height_arr)
-        height_ds.SetGeoTransform([x_min, resolution, 0, y_max, 0, -resolution])
-        
-        if input_proj is not None:
-            height_ds.SetProjection(input_proj.ExportToWkt())
-        else:
-            default_proj = osr.SpatialReference()
-            default_proj.ImportFromEPSG(4326)
-            height_ds.SetProjection(default_proj.ExportToWkt())
-        
-        height_ds.GetRasterBand(1).SetNoDataValue(noData)
-
-        height_ds.FlushCache()
-        height_ds = None
-        # ---------if reserve_flag is set to be True, we store intermediate results for further algorithm validation/debug
-        if not reserved:
-            os.system("rm {0}".format(os.path.join(buiding_dir, "_*")))
-        res = output_grid
-    else:
-        res = "EMPTY"
-
-    return res
-
-
-def getHeightFromShape_option(building_shp, fishnet_shp, output_grid, height_field, resolution=0.0009, scale=1.0, noData=-1000000.0, reserved=False, suffix=None, extent=None, shp_ext="shp", shp_driver="ESRI Shapefile", identifier="NID"):
-    buiding_dir = os.path.dirname(building_shp)
+    """
+    building_dir = os.path.dirname(building_shp)
     # fishnet_name = os.path.join(buiding_dir, "_fishnet_{0}.shp".format(suffix))
     pid = output_grid[-6:-4]
 
@@ -572,7 +570,7 @@ def getHeightFromShape_option(building_shp, fishnet_shp, output_grid, height_fie
         fishnet_layer = fishnet_ds.GetLayer()
 
         intersect_driver = ogr.GetDriverByName(shp_driver)
-        intersect_path = os.path.join(buiding_dir, "_intersect_{0}.{1}".format(suffix, shp_ext))
+        intersect_path = os.path.join(building_dir, "_intersect_{0}.{1}".format(suffix, shp_ext))
         if os.path.exists(intersect_path):
             os.remove(intersect_path)
         intersect_ds = intersect_driver.CreateDataSource(intersect_path)
@@ -626,7 +624,10 @@ def getHeightFromShape_option(building_shp, fishnet_shp, output_grid, height_fie
 
         # ---------if reserve_flag is set to be True, we store intermediate results for further algorithm validation/debug
         if not reserved:
-            os.system("rm {0}".format(os.path.join(buiding_dir, "_*")))
+            # os.system("rm {0}".format(os.path.join(building_dir, "_*")))
+            tmp_list = glob.glob(os.path.join(building_dir, "_*"))
+            for f in tmp_list:
+                os.remove(f)
         res = output_grid
     else:
         res = "EMPTY"
@@ -634,7 +635,38 @@ def getHeightFromShape_option(building_shp, fishnet_shp, output_grid, height_fie
     return res
 
 
-def GetHeightFromCSV(sample_csv, path_prefix=None, resolution=0.0009, noData=-1000000.0, reserved=False, num_cpu=1, option=False, shrink_deg=1e-6, identifier="NID"):
+def GetHeightFromCSV(sample_csv, path_prefix=None, resolution=0.0009, noData=-1000000.0, reserved=False, num_cpu=1, shrink_deg=1e-6, identifier="NID"):
+    """Calculate building height raster layers according to a .csv file.
+
+    Parameters
+    ----------
+
+    sample_csv : str
+        Path to the input .csv file which uses `City`, `SHP_Path`, `SRTM_Path`, `Year`, `BuildingHeightField`, `Unit` as columns.
+    path_prefix : str
+        Naming prefix to the path of files specified by `SHP_Path` and `SRTM_Path`.
+        The default is `None`.
+    resolution : float
+        Spatial resolution of output raster layer (in degrees).
+        The default is `0.0009`.
+    noData : float
+        NoData value for grids where no building is present.
+        The default is `-1000000.0`.
+    reserved : boolean
+        A flag which controls whether temporary files should be reserved after calculation
+        The default is `False`.
+    num_cpu : int
+        Number of expected processes to be run in parallel for the rasterization of building layer.
+        The default is `1`.
+    shrink_deg : float
+        A (negative) buffering distance for fixing invalid polygons.
+        The default is `1e-6`.
+    identifier : str
+        Name of the field which specifies the ID of each grid in the fishnet layer.
+        The default is `NID`.
+
+    """
+    
     # ------get basic settings for parallel computing
     num_cpu_available = multiprocessing.cpu_count()
     if num_cpu_available < num_cpu:
@@ -755,7 +787,8 @@ def GetHeightFromCSV(sample_csv, path_prefix=None, resolution=0.0009, noData=-10
             tmp_path = os.path.join(shp_dir, shp_base + "_temp.{0}".format(shp_ext))
             res_df.to_file(tmp_path, driver=shp_driver)
 
-            os.system("ogr2ogr {0} -t_srs 'EPSG:{1}' -select '{2}' {3}".format(shp_projected_path, srtm_epsg, height_field, tmp_path))
+            # os.system("ogr2ogr {0} -t_srs 'EPSG:{1}' -select '{2}' {3}".format(shp_projected_path, srtm_epsg, height_field, tmp_path))
+            subprocess.run(["ogr2ogr", shp_projected_path, "-t_srs", "'EPSG:{0}'".format(srtm_epsg), "-select", height_field, tmp_path])
 
         # ------Divide the whole region into sub-regions
         shp_ds = ogr.Open(shp_projected_path)
@@ -771,15 +804,6 @@ def GetHeightFromCSV(sample_csv, path_prefix=None, resolution=0.0009, noData=-10
         x_max_list = np.array([x_min + (col_id_ref[i][-1]+1)*resolution for i in range(0, n_sub)])
         y_min_list = np.array([y_min + row_id_ref[i][0]*resolution for i in range(0, n_sub)])
         y_max_list = np.array([y_min + (row_id_ref[i][-1]+1)*resolution for i in range(0, n_sub)])
-
-        '''
-        dx = (x_max - x_min) / n_sub
-        dy = (y_max - y_min) / n_sub
-        x_min_list = np.array([x_min + i*dx for i in range(0, n_sub)])
-        x_max_list = x_min_list + dx
-        y_min_list = np.array([y_min + i*dy for i in range(0, n_sub)])
-        y_max_list = y_min_list + dy
-        '''
 
         subRegion_list = [os.path.join(shp_dir, shp_base + "_projected_{0}_temp_{1}.{2}".format(srtm_epsg, str(i)+str(j), shp_ext)) for i in range(0, n_sub) for j in range(0, n_sub)]
         output_list = [os.path.join(shp_dir, shp_base + "_building_height_temp_{0}.tif".format(str(i)+str(j))) for i in range(0, n_sub) for j in range(0, n_sub)]
@@ -797,27 +821,32 @@ def GetHeightFromCSV(sample_csv, path_prefix=None, resolution=0.0009, noData=-10
                 # -----------some sub-region might be empty because no building is present in those grids
                 # -----------also, the bounding box would be narrowed automatically until it contains all of buildings
                 # -----------considering, we must specify the extent of our fishnet layer manually
-                os.system("ogr2ogr -f '{0}' -clipsrc {1} {2} {3}".format(shp_driver, " ".join([str(x) for x in extent]), subRegion_name, shp_projected_path))
+                # os.system("ogr2ogr -f '{0}' -clipsrc {1} {2} {3}".format(shp_driver, " ".join([str(x) for x in extent]), subRegion_name, shp_projected_path))
+                subprocess.run(["ogr2ogr", "-f", "'{0}'".format(shp_driver), "-clipsrc", " ".join([str(x) for x in extent]), subRegion_name, shp_projected_path])
                 arg_list.append((subRegion_name, fishnet_name, output_list[i*n_sub+j], height_field, resolution, scale, noData, True, suffix_list[i*n_sub+j], extent, shp_ext, shp_driver))
 
         # ------call the conversion function for each sub-regions
         pool = multiprocessing.Pool(processes=num_cpu)
-        # ---------in "not-option" version, denominator in weighted averaging is the area of cell
-        if not option:
-            res_list = pool.starmap(getHeightFromShape, arg_list)
-        # ---------in "option" version, denominator in weighted averaging is the sum of building footprint in this cell
-        else:
-            res_list = pool.starmap(getHeightFromShape_option, arg_list)
+        
+        res_list = pool.starmap(getHeightFromShape, arg_list)
+        
         pool.close()
         pool.join()
 
         # ------merge GeoTiff from sub-regions
         res_tiff_list = [i for i in res_list if i != "EMPTY"]
-        os.system("gdalwarp {0} {1}".format(" ".join(res_tiff_list), tiff_path))
+        # os.system("gdalwarp {0} {1}".format(" ".join(res_tiff_list), tiff_path))
+        gdal.Warp(destNameOrDestDS=tiff_path, srcDSOrSrcDSTab=res_tiff_list)
 
         if not reserved:
-            os.system("rm {0}".format(os.path.join(shp_dir, "*_temp*")))
-            os.system("rm {0}".format(os.path.join(shp_dir, "_*")))
+            # os.system("rm {0}".format(os.path.join(shp_dir, "*_temp*")))
+            tmp_list = glob.glob(os.path.join(shp_dir, "*_temp*"))
+            for f in tmp_list:
+                os.remove(f)
+            # os.system("rm {0}".format(os.path.join(shp_dir, "_*")))
+            tmp_list = glob.glob(os.path.join(shp_dir, "_*"))
+            for f in tmp_list:
+                os.remove(f)
 
         print("The building height map of {0} has been created at: {1}".format(city, tiff_path))
 
@@ -829,15 +858,15 @@ if __name__ == "__main__":
 
     #BatchConvertShapefile(csv_name, path_prefix=lyy_prefix, target_ext="gpkg")
     # ---height, 30m
-    # GetHeightFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.00027, noData=-1000000.0, reserved=False, num_cpu=25, option=True)
+    # GetHeightFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.00027, noData=-1000000.0, reserved=False, num_cpu=25)
     # ---height, 100m
-    GetHeightFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.0009, noData=-1000000.0, reserved=False, num_cpu=36, option=True)
+    GetHeightFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.0009, noData=-1000000.0, reserved=False, num_cpu=36)
     # ---height, 250m
-    #GetHeightFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.00225, noData=-1000000.0, reserved=False, num_cpu=36, option=True)
+    #GetHeightFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.00225, noData=-1000000.0, reserved=False, num_cpu=36)
     # ---height, 500m
-    #GetHeightFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.0045, noData=-1000000.0, reserved=False, num_cpu=36, option=True)
+    #GetHeightFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.0045, noData=-1000000.0, reserved=False, num_cpu=36)
     # ---height, 1000m
-    # GetHeightFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.009, noData=-1000000.0, reserved=False, num_cpu=25, option=True)
+    # GetHeightFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.009, noData=-1000000.0, reserved=False, num_cpu=25)
 
     # ---footprint, 30m
     # GetFootprintFromCSV(csv_name, path_prefix=lyy_prefix, resolution=0.00027, reserved=False, num_cpu=25)

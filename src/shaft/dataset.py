@@ -1,6 +1,7 @@
-from mathexpr import rgb_rescale_band
 import os
+import shutil
 import re
+import glob
 import multiprocessing
 from functools import reduce
 
@@ -10,6 +11,8 @@ import pandas as pd
 import scipy.interpolate as interp
 
 import gdal
+
+from mathexpr import rgb_rescale_band
 
 
 def fill_nan_nearest(dta):
@@ -463,14 +466,16 @@ def GetPatchFromCSV(csv_path, satellite_data_dir, save_path, target_height_col, 
             s1_target_base = re.findall(r"\w+_{0}".format(suffix), s1_list[0])[0] + ".tif"
             s1_target_file = os.path.join(satellite_data_dir, s1_subdir, s1_target_base)
             if not os.path.exists(s1_target_file):
-                os.system("gdalwarp {0} {1}".format(" ".join([os.path.join(satellite_data_dir, s1_subdir, f) for f in s1_list]), s1_target_file))
+                # os.system("gdalwarp {0} {1}".format(" ".join([os.path.join(satellite_data_dir, s1_subdir, f) for f in s1_list]), s1_target_file))
+                gdal.Warp(destNameOrDestDS=s1_target_file, srcDSOrSrcDSTab=[os.path.join(satellite_data_dir, s1_subdir, f) for f in s1_list])
 
             s2_subdir = s2_prefix + suffix
             s2_list = [f for f in os.listdir(os.path.join(satellite_data_dir, s2_subdir)) if f.startswith(city)]
             s2_target_base = re.findall(r"\w+_{0}".format(suffix), s2_list[0])[0] + ".tif"
             s2_target_file = os.path.join(satellite_data_dir, s2_subdir, s2_target_base)
             if not os.path.exists(s2_target_file):
-                os.system("gdalwarp {0} {1}".format(" ".join([os.path.join(satellite_data_dir, s2_subdir, f) for f in s2_list]), s2_target_file))
+                # os.system("gdalwarp {0} {1}".format(" ".join([os.path.join(satellite_data_dir, s2_subdir, f) for f in s2_list]), s2_target_file))
+                gdal.Warp(destNameOrDestDS=s2_target_file, srcDSOrSrcDSTab=[os.path.join(satellite_data_dir, s2_subdir, f) for f in s2_list])
 
         if aux_feat_info is not None:
             for feat in aux_feat_info.keys():
@@ -482,7 +487,8 @@ def GetPatchFromCSV(csv_path, satellite_data_dir, save_path, target_height_col, 
                 aux_target_base = re.findall(r"\w+_{0}".format(aux_suffix), aux_list[0])[0] + ".tif"
                 aux_target_file = os.path.join(satellite_data_dir, aux_subdir, aux_target_base)
                 if not os.path.exists(aux_target_file):
-                    os.system("gdalwarp {0} {1}".format(" ".join([os.path.join(satellite_data_dir, aux_subdir, f) for f in aux_list]), aux_target_file))
+                    # os.system("gdalwarp {0} {1}".format(" ".join([os.path.join(satellite_data_dir, aux_subdir, f) for f in aux_list]), aux_target_file))
+                    gdal.Warp(destNameOrDestDS=aux_target_file, srcDSOrSrcDSTab=[os.path.join(satellite_data_dir, aux_subdir, f) for f in aux_list])
 
         # ---------To accelerate data extraction, we call sub-processes
         pool = multiprocessing.Pool(processes=num_cpu)
@@ -537,7 +543,10 @@ def GetPatchFromCSV(csv_path, satellite_data_dir, save_path, target_height_col, 
                 city_db.create_dataset(band, data=np.concatenate([np.load(f) for f in band_file_sorted]))
 
         print(n_sample, "sample(s) collected")
-        os.system("rm -rf {0}".format(os.path.join(hf_dir, "*TEMP*")))
+        # os.system("rm -rf {0}".format(os.path.join(hf_dir, "*TEMP*")))
+        tmp_list = glob.glob(os.path.join(hf_dir, "*TEMP*"))
+        for f in tmp_list:
+            os.remove(f)
 
         print("*" * 10, city, "Finished", "*" * 10)
 
@@ -545,8 +554,7 @@ def GetPatchFromCSV(csv_path, satellite_data_dir, save_path, target_height_col, 
 
 
 if __name__ == "__main__":
-    #path_prefix = "/data/lyy/BuildingProject"
-    path_prefix = "/Users/liruidong/Downloads/tmp_back"
+    path_prefix = "/data/lyy/BuildingProject"
 
     ref_data_dir_prefix = os.path.join(path_prefix, "ReferenceData/Summary")
     rs_data_dir_prefix = path_prefix
@@ -557,8 +565,7 @@ if __name__ == "__main__":
     res_scale_mapping = {100: 15, 250: 30, 500: 60, 1000: 120}
     num_cpu = 1
 
-    #for rs_res in [100, 250, 500, 1000]:
-    for rs_res in [1000]:
+    for rs_res in [100, 250, 500, 1000]:
         scale = [res_scale_mapping[rs_res]]
         height_prefix = os.path.join(ref_data_dir_prefix, "BuildingHeight_option_%dm" % rs_res)
         footprint_prefix = os.path.join(ref_data_dir_prefix, "BuildingFootprint_%dm" % rs_res)
@@ -583,37 +590,19 @@ if __name__ == "__main__":
     #sample_dataset(src_dataset_path="/data/lyy/BuildingProject/dataset/patch_data_50pt_s60_500m_valid.h5", out_dataset_path="/data/lyy/BuildingProject/dataset/patch_data_50pt_s60_500m_sample.h5",
                    #sample_ratio=0.02)
 
-    split_dataset(src_dataset_path=os.path.join(rs_data_dir, "patch_data_50pt_s15_100m.h5"),
-                  dataset_split_ratio=0.2, group_split_ratio=0.0,
-                  group_exclude=city_exclude_1)
+    for rs_res in [100, 250, 500, 1000]:
+        s = res_scale_mapping[rs_res]
 
-    split_dataset(src_dataset_path=os.path.join(rs_data_dir, "patch_data_50pt_s30_250m.h5"),
-                  dataset_split_ratio=0.2, group_split_ratio=0.0,
-                  group_exclude=city_exclude_2)
+        split_dataset(src_dataset_path=os.path.join(rs_data_dir, "patch_data_50pt_s{0}_{1}m.h5".format(s, rs_res)),
+                        dataset_split_ratio=0.2, group_split_ratio=0.0,
+                        group_exclude=city_exclude_1)
+        
+        split_dataset(src_dataset_path=os.path.join(rs_data_dir, "patch_data_50pt_s{0}_{1}m_valid.h5".format(s, rs_res)),
+                        dataset_split_ratio=0.5, group_split_ratio=0.0,
+                        group_exclude=city_exclude_1)
 
-    split_dataset(src_dataset_path=os.path.join(rs_data_dir, "patch_data_50pt_s60_500m.h5"),
-                  dataset_split_ratio=0.2, group_split_ratio=0.0,
-                  group_exclude=city_exclude_2)
-
-    split_dataset(src_dataset_path=os.path.join(rs_data_dir, "patch_data_50pt_s120_1000m.h5"),
-                  dataset_split_ratio=0.2, group_split_ratio=0.0,
-                  group_exclude=city_exclude_2)
-
-    split_dataset(src_dataset_path=os.path.join(rs_data_dir, "patch_data_50pt_s15_100m_valid.h5"),
-                  dataset_split_ratio=0.5, group_split_ratio=0.0,
-                  group_exclude=city_exclude_1)
-
-    split_dataset(src_dataset_path=os.path.join(rs_data_dir, "patch_data_50pt_s30_250m_valid.h5"),
-                  dataset_split_ratio=0.5, group_split_ratio=0.0,
-                  group_exclude=city_exclude_2)
-
-    split_dataset(src_dataset_path=os.path.join(rs_data_dir, "patch_data_50pt_s60_500m_valid.h5"),
-                  dataset_split_ratio=0.5, group_split_ratio=0.0,
-                  group_exclude=city_exclude_2)
-
-    split_dataset(src_dataset_path=os.path.join(rs_data_dir, "patch_data_50pt_s120_1000m_valid.h5"),
-                  dataset_split_ratio=0.5, group_split_ratio=0.0,
-                  group_exclude=city_exclude_2)
+        shutil.move("patch_data_50pt_s{0}_{1}m_valid_train.h5".format(s, rs_res), "patch_data_50pt_s{0}_{1}m_valid.h5".format(s, rs_res))
+        shutil.move("patch_data_50pt_s{0}_{1}m_valid_valid.h5".format(s, rs_res), "patch_data_50pt_s{0}_{1}m_test.h5".format(s, rs_res))
 
     '''    
     # -----calculate the number of samples in each dataset

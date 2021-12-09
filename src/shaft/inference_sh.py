@@ -761,15 +761,15 @@ def pred_height_from_tiff_DL_patch(extent: list, out_file: str, tif_ref: dict, p
     activation : str
         Activation function for model output.
         It can be chosen from: `relu`, `sigmoid`. The default is `None`.
-    log_scale: boolean
+    log_scale : boolean
         A flag which controls whether log-transformation is used for target variable.
         The default is `False`.
-    cuda_used: boolean
+    cuda_used : boolean
         A flag which controls whether CUDA is used for inference.
         The default is `False`.
-    v_min: float
+    v_min : float
         Lower bound for prediction.
-    v_max: float
+    v_max : float
         Upper bound for prediction.
 
     """
@@ -1103,7 +1103,7 @@ def pred_height_from_tiff_DL_patch_MTL(extent: list, out_footprint_file: str, ou
                                        crossed=False, base_dir=".", padding=0.005, batch_size=1, tmp_suffix=None,
                                        log_scale=True, cuda_used=False,
                                        h_min=0.0, h_max=None, f_min=0.0, f_max=None):
-    """Predict building height and footprint using Deep-Learing-based (DL) models trained by Multi-Task Learning (STL).
+    """Predict building height and footprint using Deep-Learing-based (DL) models trained by Multi-Task Learning (MTL).
 
     Parameters
     ----------
@@ -1146,10 +1146,10 @@ def pred_height_from_tiff_DL_patch_MTL(extent: list, out_footprint_file: str, ou
     s2_key : str
         Key in `tif_ref[AggOps]` which indicates the path of Sentinel-2's files.
         The default is `sentinel_2`.
-    aux_feat_info: dict
+    aux_feat_info : dict
         A dictionary which contains the auxiliary feature information including `patch_size_ratio` and `path`.
         The default is `None`.
-    crossed: boolean
+    crossed : boolean
         A flag which controls whether a link is to be added between last fully-connected layers of building footprint and height prediction.
         The default is `False`.
     base_dir : str
@@ -1164,25 +1164,22 @@ def pred_height_from_tiff_DL_patch_MTL(extent: list, out_footprint_file: str, ou
     tmp_suffix : str
         Naming suffix for temporary files.
         The default is `None`.
-    activation : str
-        Activation function for model output.
-        It can be chosen from: `relu`, `sigmoid`. The default is `None`.
-    log_scale: boolean
+    log_scale : boolean
         A flag which controls whether log-transformation is used for target variable.
         The default is `False`.
-    cuda_used: boolean
+    cuda_used : boolean
         A flag which controls whether CUDA is used for inference.
         The default is `False`.
-    h_min: float
+    h_min : float
         Lower bound for building height prediction.
         The default is `0.0`.
-    h_max: float
+    h_max : float
         Upper bound for building height prediction.
         The default is `None`.
-    f_min: float
+    f_min : float
         Lower bound for building footprint prediction.
         The default is `0.0`.
-    f_max: float
+    f_max : float
         Upper bound for building footprint prediction.
         The default is `None`.
 
