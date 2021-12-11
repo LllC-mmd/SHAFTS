@@ -53,7 +53,7 @@ setup(
         "scikit-learn ~= 0.24",
         "scikit-image ~= 0.17",
         "xgboost ~= 1.3",
-        "gdal ~= 3.0",
+        "gdal",
         "opencv-python", 
         "numpy",
         "matplotlib",
