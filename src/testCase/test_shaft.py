@@ -72,8 +72,7 @@ class TestShaft(TestCase):
             extent = sample_loc[loc]["extent"]
             input_ref = sample_loc[loc]["raw_data"]
             aux_feat_info = sample_loc[loc]["aux_feat"]
-            #for target_res in [100, 250, 500, 1000]:
-            for target_res in [100, 250, 500]:
+            for target_res in [100, 250, 500, 1000]:
                 input_size = self.input_size[target_res]
                 output_res = self.res[target_res]
                 pt_path = self.stl_trained_record[target_res]
@@ -131,8 +130,7 @@ class TestShaft(TestCase):
             extent = sample_loc[loc]["extent"]
             input_ref = sample_loc[loc]["raw_data"]
             aux_feat_info = sample_loc[loc]["aux_feat"]
-            #for target_res in [100, 250, 500, 1000]:
-            for target_res in [100, 250, 500]:
+            for target_res in [100, 250, 500, 1000]:
                 input_size = self.input_size[target_res]
                 output_res = self.res[target_res]
                 pt_path = self.mtl_trained_record[target_res]

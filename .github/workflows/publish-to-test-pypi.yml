@@ -5,7 +5,13 @@ on: push
 jobs:
   build-n-publish:
     name: Build and publish Python 🐍 distributions 📦 to PyPI and TestPyPI
-    runs-on: ubuntu-18.04
+
+    strategy:
+      matrix:
+        py: ["3.10"]
+        os: [macOS-latest, windows-latest, ubuntu-latest]
+
+    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@master
@@ -16,7 +22,7 @@ jobs:
 
     - name: Install pypa/build
       run: |
-        pip install pandas wheel pytest tables
+        $CONDA/bin/conda install pandas wheel pytest tables
         make test
         make wheel
 

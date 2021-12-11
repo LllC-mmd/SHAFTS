@@ -18,107 +18,117 @@ def get_feature(raw_band, band_ref, s2_band_use, band_statistics, s2_morph_ops, 
     city_feature = []
 
     for suffix in sorted(band_ref.keys()):
-        # ---------------[1] Sentinel-1-VV
-        s1_vv = raw_band[band_ref[suffix]["VV"]]
-        s1_vv_stat = [band_stat[stat](s1_vv) for stat in bs_key]  # shape(s1_vv_stat) = (n_statistics, n_sample_city)
-        city_feature.append(np.transpose(s1_vv_stat))
-        # ---------------[2] Sentinel-1-VH
-        s1_vh = raw_band[band_ref[suffix]["VH"]]
-        s1_vh_stat = [band_stat[stat](s1_vh) for stat in bs_key]
-        city_feature.append(np.transpose(s1_vh_stat))
-        # ---------------[3] Sentinel-2-R/G/B/NIR
-        s2_r = raw_band[band_ref[suffix]["R"]]
-        s2_g = raw_band[band_ref[suffix]["G"]]
-        s2_b = raw_band[band_ref[suffix]["B"]]
-        s2_nir = raw_band[band_ref[suffix]["NIR"]]
-        # ------------------if rescaled = True, we use Instance Normalization for R/G/B and NIR band
-        if rescaled:
-            s2_r = rgb_rescale(dta=s2_r, axis=(-1, -2))
-            s2_g = rgb_rescale(dta=s2_g, axis=(-1, -2))
-            s2_b = rgb_rescale(dta=s2_b, axis=(-1, -2))
-            s2_nir = rgb_rescale(dta=s2_nir, axis=(-1, -2))
+        if isinstance(band_ref[suffix], dict):
+            # ---------------[1] Sentinel-1-VV
+            s1_vv = raw_band[band_ref[suffix]["VV"]]
+            s1_vv_stat = [band_stat[stat](s1_vv) for stat in bs_key]  # shape(s1_vv_stat) = (n_statistics, n_sample_city)
+            city_feature.append(np.transpose(s1_vv_stat))
+            # ---------------[2] Sentinel-1-VH
+            s1_vh = raw_band[band_ref[suffix]["VH"]]
+            s1_vh_stat = [band_stat[stat](s1_vh) for stat in bs_key]
+            city_feature.append(np.transpose(s1_vh_stat))
+            # ---------------[3] Sentinel-2-R/G/B/NIR
+            s2_r = raw_band[band_ref[suffix]["R"]]
+            s2_g = raw_band[band_ref[suffix]["G"]]
+            s2_b = raw_band[band_ref[suffix]["B"]]
+            s2_nir = raw_band[band_ref[suffix]["NIR"]]
+            # ------------------if rescaled = True, we use Instance Normalization for R/G/B and NIR band
+            if rescaled:
+                s2_r = rgb_rescale(dta=s2_r, axis=(-1, -2))
+                s2_g = rgb_rescale(dta=s2_g, axis=(-1, -2))
+                s2_b = rgb_rescale(dta=s2_b, axis=(-1, -2))
+                s2_nir = rgb_rescale(dta=s2_nir, axis=(-1, -2))
 
-        luminance = get_luminance(s2_r, s2_g, s2_b, reduced=False)
+            luminance = get_luminance(s2_r, s2_g, s2_b, reduced=False)
 
-        s2_r_stat = [band_stat[stat](s2_r) for stat in bs_key]
-        city_feature.append(np.transpose(s2_r_stat))
+            s2_r_stat = [band_stat[stat](s2_r) for stat in bs_key]
+            city_feature.append(np.transpose(s2_r_stat))
 
-        s2_g_stat = [band_stat[stat](s2_g) for stat in bs_key]
-        city_feature.append(np.transpose(s2_g_stat))
+            s2_g_stat = [band_stat[stat](s2_g) for stat in bs_key]
+            city_feature.append(np.transpose(s2_g_stat))
 
-        s2_b_stat = [band_stat[stat](s2_b) for stat in bs_key]
-        city_feature.append(np.transpose(s2_b_stat))
+            s2_b_stat = [band_stat[stat](s2_b) for stat in bs_key]
+            city_feature.append(np.transpose(s2_b_stat))
 
-        s2_nir_stat = [band_stat[stat](s2_nir) for stat in bs_key]
-        city_feature.append(np.transpose(s2_nir_stat))
+            s2_nir_stat = [band_stat[stat](s2_nir) for stat in bs_key]
+            city_feature.append(np.transpose(s2_nir_stat))
 
-        # ------------------set a dict of bands for further feature calculation
-        band_dict = {"Red": s2_r, "Green": s2_g, "Blue": s2_b, "NIR": s2_nir, "Brightness": luminance}
+            # ------------------set a dict of bands for further feature calculation
+            band_dict = {"Red": s2_r, "Green": s2_g, "Blue": s2_b, "NIR": s2_nir, "Brightness": luminance}
 
-        # ------------------3.1 Spectral Features (SFs) where # of SFs = 7
-        ndvi_avg = get_normalized_index(s2_nir, s2_r, reduced=True)
-        n_nir_green = get_normalized_index(s2_nir, s2_g, reduced=True)
-        n_nir_blue = get_normalized_index(s2_nir, s2_b, reduced=True)
-        n_red_green = get_normalized_index(s2_r, s2_g, reduced=True)
-        n_red_blue = get_normalized_index(s2_r, s2_b, reduced=True)
-        n_green_blue = get_normalized_index(s2_g, s2_b, reduced=True)
-        luminance_avg = np.mean(luminance, axis=(-1, -2))
-        sf = [ndvi_avg, n_nir_green, n_nir_blue, n_red_green, n_red_blue, n_green_blue, luminance_avg]
-        city_feature.append(np.transpose(sf))
+            # ------------------3.1 Spectral Features (SFs) where # of SFs = 7
+            ndvi_avg = get_normalized_index(s2_nir, s2_r, reduced=True)
+            n_nir_green = get_normalized_index(s2_nir, s2_g, reduced=True)
+            n_nir_blue = get_normalized_index(s2_nir, s2_b, reduced=True)
+            n_red_green = get_normalized_index(s2_r, s2_g, reduced=True)
+            n_red_blue = get_normalized_index(s2_r, s2_b, reduced=True)
+            n_green_blue = get_normalized_index(s2_g, s2_b, reduced=True)
+            luminance_avg = np.mean(luminance, axis=(-1, -2))
+            sf = [ndvi_avg, n_nir_green, n_nir_blue, n_red_green, n_red_blue, n_green_blue, luminance_avg]
+            city_feature.append(np.transpose(sf))
 
-        # ------------------3.2 Morphological Features (MFs) where # of MFs = 5 * 4 * (n_SE - 1)
-        # --------------------- n_SE is the number of the size of the Structural Element
-        MF_dict = {}
-        for b in s2_band_use:
-            for op in s2_morph_ops:
-                MF_dict[b + "@" + op] = get_DMP_mean_batch(img_list=band_dict[b], size_list=DMP_size, method=op, num_cpu=num_cpu)
+            # ------------------3.2 Morphological Features (MFs) where # of MFs = 5 * 4 * (n_SE - 1)
+            # --------------------- n_SE is the number of the size of the Structural Element
+            MF_dict = {}
+            for b in s2_band_use:
+                for op in s2_morph_ops:
+                    MF_dict[b + "@" + op] = get_DMP_mean_batch(img_list=band_dict[b], size_list=DMP_size, method=op, num_cpu=num_cpu)
 
-        for mk in sorted(MF_dict.keys()):
-            city_feature.append(np.transpose(MF_dict[mk]))
+            for mk in sorted(MF_dict.keys()):
+                city_feature.append(np.transpose(MF_dict[mk]))
 
-        # ------------------3.3 Texture Features (TFs) where # of TFs = 8 * 5 * n_SE
-        TF_dict = {}
-        GLCM_dict = {}
-        for b in s2_band_use:
-            for s in DMP_size:
-                # shape(GLCM_dict[b + "@" + str(s)]) = (n_sample_city, n_level, n_level)
-                GLCM_dict[b + "@" + str(s)] = get_avg_GLCM_batch(band_dict[b], s, GLCM_angle, normed=True, num_cpu=num_cpu)
+            # ------------------3.3 Texture Features (TFs) where # of TFs = 8 * 5 * n_SE
+            TF_dict = {}
+            GLCM_dict = {}
+            for b in s2_band_use:
+                for s in DMP_size:
+                    # shape(GLCM_dict[b + "@" + str(s)]) = (n_sample_city, n_level, n_level)
+                    GLCM_dict[b + "@" + str(s)] = get_avg_GLCM_batch(band_dict[b], s, GLCM_angle, normed=True, num_cpu=num_cpu)
 
-        for gk in sorted(GLCM_dict.keys()):
-            for func in sorted(texture_func.keys()):
-                TF_dict[gk + "@" + func] = texture_func[func](GLCM_dict[gk])
+            for gk in sorted(GLCM_dict.keys()):
+                for func in sorted(texture_func.keys()):
+                    TF_dict[gk + "@" + func] = texture_func[func](GLCM_dict[gk])
 
-        for tk in sorted(TF_dict.keys()):
-            city_feature.append(np.reshape(TF_dict[tk], (-1, 1)))
+            for tk in sorted(TF_dict.keys()):
+                city_feature.append(np.reshape(TF_dict[tk], (-1, 1)))
+        else:
+            aux_feat = raw_band[band_ref[suffix]]
+            aux_stat = [band_stat[stat](aux_feat) for stat in bs_key]
+            city_feature.append(np.transpose(aux_stat))
 
     # ------------give a summary for recorded features
     if reported:
         feature_summary = open("feature_summary.txt", "w")
         feature_summary.write("*"*10 + "Feature Recorded" + "*"*10 + "\n")
         for suffix in sorted(band_ref.keys()):
-            # ------------raw band statistics
-            for raw_band_name in ["VV", "VH", "R", "G", "B", "NIR"]:
+            if isinstance(band_ref[suffix], dict):
+                # ------------raw band statistics
+                for raw_band_name in ["VV", "VH", "R", "G", "B", "NIR"]:
+                    for stat in bs_key:
+                        feature_summary.write("@".join([suffix, raw_band_name, stat]) + "\n")
+                # ------------SFs
+                for sf in ["NIR-R", "NIR-G", "NIR-B", "R-G", "R-B", "G-B", "Brightness"]:
+                    feature_summary.write("@".join([suffix, sf, "Mean"]) + "\n")
+                # ------------MFs
+                MF_dict_keys = [b + "-" + op for b in s2_band_use for op in s2_morph_ops]
+                for mk in sorted(MF_dict_keys):
+                    for i in range(0, len(DMP_size)-1):
+                        feature_summary.write("@".join([suffix, mk, str(DMP_size[i+1]) + "-" + str(DMP_size[i])]) + "\n")
+                # ------------TFs
+                GLCM_dict_keys = [b + "-" + str(s) for b in s2_band_use for s in DMP_size]
+                TF_dict_keys = [gk + "@" + func for gk in sorted(GLCM_dict_keys) for func in sorted(texture_func.keys())]
+                for tk in sorted(TF_dict_keys):
+                    feature_summary.write("@".join([suffix, tk]) + "\n")
+            else:
                 for stat in bs_key:
-                    feature_summary.write("@".join([suffix, raw_band_name, stat]) + "\n")
-            # ------------SFs
-            for sf in ["NIR-R", "NIR-G", "NIR-B", "R-G", "R-B", "G-B", "Brightness"]:
-                feature_summary.write("@".join([suffix, sf, "Mean"]) + "\n")
-            # ------------MFs
-            MF_dict_keys = [b + "-" + op for b in s2_band_use for op in s2_morph_ops]
-            for mk in sorted(MF_dict_keys):
-                for i in range(0, len(DMP_size)-1):
-                    feature_summary.write("@".join([suffix, mk, str(DMP_size[i+1]) + "-" + str(DMP_size[i])]) + "\n")
-            # ------------TFs
-            GLCM_dict_keys = [b + "-" + str(s) for b in s2_band_use for s in DMP_size]
-            TF_dict_keys = [gk + "@" + func for gk in sorted(GLCM_dict_keys) for func in sorted(texture_func.keys())]
-            for tk in sorted(TF_dict_keys):
-                feature_summary.write("@".join([suffix, tk]) + "\n")
+                    feature_summary.write("@".join([suffix, stat]) + "\n")
+
         feature_summary.write("*" * 30 + "\n")
 
     return city_feature
 
 
-def GetDataPairFromDataset(dataset_path, target_variable, aggregate_suffix, scale_level=0, saved=True, num_cpu=1, chunk_size=50000, save_suffix=None):
+def GetDataPairFromDataset(dataset_path, target_variable, aggregate_suffix, scale_level=0, saved=True, num_cpu=1, chunk_size=50000, save_suffix=None, aux_namelist=None):
     # ------Experiment Settings
     # scale = 0.0001
     scale = 1.0
@@ -196,6 +206,11 @@ def GetDataPairFromDataset(dataset_path, target_variable, aggregate_suffix, scal
                 s2_nir = f[city][s2_nir_ref][id_start:id_end, scale_level, :, :] * scale
                 city_feature[s2_nir_ref] = s2_nir
                 city_band_ref[suffix]["NIR"] = s2_nir_ref
+            
+            if aux_namelist is not None:
+                for k in aux_namelist:
+                    city_feature[k] = f[city][k][id_start:id_end, scale_level, :, :]
+                    city_band_ref[k] = k
 
             res = get_feature(city_feature, city_band_ref, s2_band_use, band_statistics, s2_morph_ops, DMP_size,
                               GLCM_angle, texture_list, rescaled=False, reported=True, num_cpu=num_cpu)
@@ -389,11 +404,12 @@ def train_vvh_model(training_dataset_path, test_dataset_path, target_variable, a
 
 def train_baggingSVR_model(training_dataset_path, test_dataset_path, target_variable, aggregate_suffix, scale_level=0,
                            reduction_ratio=0.5, reported=True, saved=True, selected=True, evaluated=True,
-                           num_cpu=1, num_cv=1, chunk_size=50000, **kwargs):
+                           num_cpu=1, num_cv=1, chunk_size=50000, aux_namelist=None, **kwargs):
     if "save_suffix" in kwargs.keys():
         save_suffix = kwargs["save_suffix"]
     else:
         save_suffix = None
+
     # ------get paired data for training
     if "training_feature_file" in kwargs.keys() and kwargs["training_feature_file"] is not None:
         feature_train = np.load(kwargs["training_feature_file"])
@@ -404,11 +420,11 @@ def train_baggingSVR_model(training_dataset_path, test_dataset_path, target_vari
         train_suffix = "_train" + save_suffix
         feature_train, height_train = GetDataPairFromDataset(training_dataset_path, target_variable, aggregate_suffix,
                                                              scale_level, saved, num_cpu, chunk_size,
-                                                             save_suffix=train_suffix)
+                                                             save_suffix=train_suffix, aux_namelist=aux_namelist)
         test_suffix = "_test" + save_suffix
         feature_test, height_test = GetDataPairFromDataset(test_dataset_path, target_variable, aggregate_suffix,
                                                            scale_level, saved, num_cpu, chunk_size,
-                                                           save_suffix=test_suffix)
+                                                           save_suffix=test_suffix, aux_namelist=aux_namelist)
     height_train = np.log(height_train)
     height_test = np.log(height_test)
 
@@ -464,7 +480,7 @@ def train_baggingSVR_model(training_dataset_path, test_dataset_path, target_vari
         print("*" * 40)
     else:
         # ------use default BaggingSVR parameters
-        #n_svr = 30
+        #n_svr = 40
         n_svr = 50
         #max_samples = 0.05
         max_samples = 0.1
@@ -487,7 +503,7 @@ def train_baggingSVR_model(training_dataset_path, test_dataset_path, target_vari
 
 def train_SVR_model(training_dataset_path, test_dataset_path, target_variable, aggregate_suffix, scale_level=0,
                     reduction_ratio=0.5, reported=True, saved=True, selected=True, evaluated=True,
-                    num_cpu=1, num_cv=1, chunk_size=50000, **kwargs):
+                    num_cpu=1, num_cv=1, chunk_size=50000, aux_namelist=None, **kwargs):
     if "save_suffix" in kwargs.keys():
         save_suffix = kwargs["save_suffix"]
     else:
@@ -502,11 +518,11 @@ def train_SVR_model(training_dataset_path, test_dataset_path, target_variable, a
         train_suffix = "_train" + save_suffix
         feature_train, height_train = GetDataPairFromDataset(training_dataset_path, target_variable, aggregate_suffix,
                                                              scale_level, saved, num_cpu, chunk_size,
-                                                             save_suffix=train_suffix)
+                                                             save_suffix=train_suffix, aux_namelist=aux_namelist)
         test_suffix = "_test" + save_suffix
         feature_test, height_test = GetDataPairFromDataset(test_dataset_path, target_variable, aggregate_suffix,
                                                            scale_level, saved, num_cpu, chunk_size,
-                                                           save_suffix=test_suffix)
+                                                           save_suffix=test_suffix, aux_namelist=aux_namelist)
     height_train = np.log(height_train)
     height_test = np.log(height_test)
 
@@ -579,7 +595,7 @@ def train_SVR_model(training_dataset_path, test_dataset_path, target_variable, a
 
 def train_RF_model(training_dataset_path, test_dataset_path, target_variable, aggregate_suffix, scale_level=0,
                    reduction_ratio=0.5, reported=True, saved=True, selected=True, evaluated=True,
-                   num_cpu=1, num_cv=1, chunk_size=50000, **kwargs):
+                   num_cpu=1, num_cv=1, chunk_size=50000, aux_namelist=None, **kwargs):
     if "save_suffix" in kwargs.keys():
         save_suffix = kwargs["save_suffix"]
     else:
@@ -594,11 +610,11 @@ def train_RF_model(training_dataset_path, test_dataset_path, target_variable, ag
         train_suffix = "_train" + save_suffix
         feature_train, height_train = GetDataPairFromDataset(training_dataset_path, target_variable, aggregate_suffix,
                                                              scale_level, saved, num_cpu, chunk_size,
-                                                             save_suffix=train_suffix)
+                                                             save_suffix=train_suffix, aux_namelist=aux_namelist)
         test_suffix = "_test" + save_suffix
         feature_test, height_test = GetDataPairFromDataset(test_dataset_path, target_variable, aggregate_suffix,
                                                            scale_level, saved, num_cpu, chunk_size,
-                                                           save_suffix=test_suffix)
+                                                           save_suffix=test_suffix, aux_namelist=aux_namelist)
     height_train = np.log(height_train)
     height_test = np.log(height_test)
 
@@ -670,7 +686,7 @@ def train_RF_model(training_dataset_path, test_dataset_path, target_variable, ag
 
 def train_XGBoost_model(training_dataset_path, test_dataset_path, target_variable, aggregate_suffix, scale_level=0,
                         reduction_ratio=0.5, reported=True, saved=True, selected=True, evaluated=True,
-                        num_cpu=1, num_cv=1, chunk_size=50000, **kwargs):
+                        num_cpu=1, num_cv=1, chunk_size=50000, aux_namelist=None, **kwargs):
     if "save_suffix" in kwargs.keys():
         save_suffix = kwargs["save_suffix"]
     else:
@@ -685,11 +701,11 @@ def train_XGBoost_model(training_dataset_path, test_dataset_path, target_variabl
         train_suffix = "_train" + save_suffix
         feature_train, height_train = GetDataPairFromDataset(training_dataset_path, target_variable, aggregate_suffix,
                                                              scale_level, saved, num_cpu, chunk_size,
-                                                             save_suffix=train_suffix)
+                                                             save_suffix=train_suffix, aux_namelist=aux_namelist)
         test_suffix = "_test" + save_suffix
         feature_test, height_test = GetDataPairFromDataset(test_dataset_path, target_variable, aggregate_suffix,
                                                            scale_level, saved, num_cpu, chunk_size,
-                                                           save_suffix=test_suffix)
+                                                           save_suffix=test_suffix, aux_namelist=aux_namelist)
     height_train = np.log(height_train)
     height_test = np.log(height_test)
 
@@ -784,6 +800,8 @@ if __name__ == "__main__":
     parser.add_argument("--test_dataset", type=str,
                         default="dataset/patch_data_50pt_s15_sample_valid.h5",
                         help="path of the test dataset")
+    parser.add_argument("--aux_feature", type=str, 
+                        default=None, help="comma-separated namelist of auxiliary features (e.g. DEM) for prediction")
 
     # model training params
     parser.add_argument("--reduction_ratio", type=float, default=0.5,
@@ -828,6 +846,9 @@ if __name__ == "__main__":
     else:
         train_with_evaluation = False
 
+    if args.aux_feature is not None:
+        args.aux_feature = [s for s in args.aux_feature.split(",")]
+
     if args.model == "VVH":
         train_vvh_model(training_dataset_path=args.training_dataset, test_dataset_path=args.test_dataset,
                         target_variable=args.target, aggregate_suffix=args.aggregation,
@@ -842,6 +863,7 @@ if __name__ == "__main__":
                                reduction_ratio=args.reduction_ratio,
                                saved=saved, selected=selected, evaluated=train_with_evaluation,
                                num_cpu=args.num_cpu, chunk_size=args.chunk_size,
+                               aux_namelist=args.aux_feature,
                                save_suffix=args.save_suffix, num_cv=args.num_cv,
                                training_feature_file=args.training_feature_file,
                                training_target_file=args.training_target_file,
@@ -853,6 +875,7 @@ if __name__ == "__main__":
                         reduction_ratio=args.reduction_ratio,
                         saved=saved, selected=selected, evaluated=train_with_evaluation,
                         num_cpu=args.num_cpu, chunk_size=args.chunk_size,
+                        aux_namelist=args.aux_feature,
                         save_suffix=args.save_suffix, num_cv=args.num_cv,
                         training_feature_file=args.training_feature_file,
                         training_target_file=args.training_target_file,
@@ -864,6 +887,7 @@ if __name__ == "__main__":
                        reduction_ratio=args.reduction_ratio,
                        saved=saved, selected=selected, evaluated=train_with_evaluation,
                        num_cpu=args.num_cpu, chunk_size=args.chunk_size,
+                       aux_namelist=args.aux_feature,
                        save_suffix=args.save_suffix, num_cv=args.num_cv,
                        training_feature_file=args.training_feature_file,
                        training_target_file=args.training_target_file,
@@ -875,6 +899,7 @@ if __name__ == "__main__":
                             reduction_ratio=args.reduction_ratio,
                             saved=saved, selected=selected, evaluated=train_with_evaluation,
                             num_cpu=args.num_cpu, chunk_size=args.chunk_size,
+                            aux_namelist=args.aux_feature,
                             save_suffix=args.save_suffix, num_cv=args.num_cv,
                             training_feature_file=args.training_feature_file,
                             training_target_file=args.training_target_file,
