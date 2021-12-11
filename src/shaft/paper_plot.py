@@ -346,11 +346,13 @@ def fig_2_dataset_loc_plot(csv_path, path_prefix=None, report=False):
     # ---read the center location, i.e., (lon, lat) of each city
     target_spatialRef = osr.SpatialReference()
     target_spatialRef.ImportFromEPSG(4326)
+    target_spatialRef.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
 
-    xy_center = []
+    xy_center = {}
     df = pd.read_csv(csv_path)
     for row_id in df.index:
         # ------read basic information of Shapefile
+        city_name = df.loc[row_id]["City"]
         dta_path = os.path.join(path_prefix, df.loc[row_id]["SHP_Path"])
         # ---------get Shapefile extent
         shp_ds = ogr.Open(dta_path, 0)
@@ -362,7 +364,7 @@ def fig_2_dataset_loc_plot(csv_path, path_prefix=None, report=False):
         shp_spatialRef = shp_layer.GetSpatialRef()
         coordTrans = osr.CoordinateTransformation(shp_spatialRef, target_spatialRef)
         lon, lat = coordTrans.TransformPoint(x_center, y_center)[0:2]
-        xy_center.append([lon, lat])
+        xy_center[city_name] = [lon, lat]
 
     # ---plot the center location on the world map
     projection = ccrs.PlateCarree()
@@ -372,13 +374,14 @@ def fig_2_dataset_loc_plot(csv_path, path_prefix=None, report=False):
 
     ax.stock_img()
 
-    for loc in xy_center:
+    for city_name, loc in xy_center.items():
         x, y = loc
         if report:
-            print(x, y)
-        ax.plot(x, y, "or", markersize=5)
+            print(city_name, ", ", str(x), ",", str(y))
+        ax.plot(x, y, "or", markersize=3)
 
-    ax.plot(xy_center[0][0], xy_center[0][1], "or", markersize=5, label="center of sample cities")
+    k_test = list(xy_center.keys())[0]
+    ax.plot(xy_center[k_test][0], xy_center[k_test][1], "or", markersize=5, label="center of sample cities")
     ax.set_xticks(np.linspace(-180, 180, 5), crs=projection)
     ax.set_yticks(np.linspace(-90, 90, 5), crs=projection)
     lon_formatter = LongitudeFormatter(zero_direction_label=True)
@@ -388,7 +391,7 @@ def fig_2_dataset_loc_plot(csv_path, path_prefix=None, report=False):
 
     plt.legend()
     # plt.show()
-    plt.savefig("report/img/Fig-1-location.png", dpi=500)
+    plt.savefig("Fig-1-location.png", dpi=500)
 
 
 # Fig. 1. Distributions of reference building height and building footprint under diﬀerent target resolutions
@@ -1959,24 +1962,25 @@ if __name__ == "__main__":
     # get_prediction_DL_batch(base_dir="DL_run", ds_dir="/data/lyy/BuildingProject/dataset", save_dir="records", var="height", log_scale=False)
     # get_prediction_DL_batch(base_dir="DL_run", ds_dir="/data/lyy/BuildingProject/dataset", save_dir="records", var="footprint", log_scale=False)
     # get_prediction_ML(base_dir="ML_run", feature_dir="dataset", save_dir="records", var="footprint", log_scale=True)
+    
+    fig_2_dataset_loc_plot(csv_path="utils/HeightGen.csv",
+                           path_prefix="/Volumes/ForLyy/Temp/ReferenceData", report=True)
     '''
-    fig_2_dataset_loc_plot(csv_path="utils/HeightGen_2021.csv",
-                           path_prefix="/Users/lyy/Downloads/ReferenceData")
     '''
-    fig_1_dataset_distribution_plot(plot_type="box", path_prefix="/data/lyy/BuildingProject/dataset")
-    fig_4_model_metric_corr(res_prefix="records", var="height")
-    fig_4_curve_STL_MTL(record_prefix="DL_run")
-    fig_4_model_metric_hist_2x4(res_prefix="records", num_bin=200, log_scale=True)
-    fig_4_r2_partition(res_prefix="records")
-    fig_4_metric_scale(res_prefix="records")
-    fig_5_model_close_up(var="footprint")
-    fig_5_model_close_up(var="height")
-    fig_6_Glasgow_compare(ref_prefix="testCase/infer_test_Glasgow", res_prefix="testCase/infer_test_Glasgow", var="footprint")
-    fig_6_Glasgow_compare(ref_prefix="testCase/infer_test_Glasgow", res_prefix="testCase/infer_test_Glasgow", var="height")
+    #fig_1_dataset_distribution_plot(plot_type="box", path_prefix="/data/lyy/BuildingProject/dataset")
+    #fig_4_model_metric_corr(res_prefix="records", var="height")
+    #fig_4_curve_STL_MTL(record_prefix="DL_run")
+    #fig_4_model_metric_hist_2x4(res_prefix="records", num_bin=200, log_scale=True)
+    #fig_4_r2_partition(res_prefix="records")
+    #fig_4_metric_scale(res_prefix="records")
+    #fig_5_model_close_up(var="footprint")
+    #fig_5_model_close_up(var="height")
+    #fig_6_Glasgow_compare(ref_prefix="testCase/infer_test_Glasgow", res_prefix="testCase/infer_test_Glasgow", var="footprint")
+    #fig_6_Glasgow_compare(ref_prefix="testCase/infer_test_Glasgow", res_prefix="testCase/infer_test_Glasgow", var="height")
     #fig_6_LosAngeles_compare(ref_prefix="testCase/infer_test_LosAngeles", res_prefix="testCase/infer_test_LosAngeles",
                              #var="footprint")
     #fig_6_LosAngeles_compare(ref_prefix="testCase/infer_test_LosAngeles", res_prefix="testCase/infer_test_LosAngeles",
                              #var="height")
-    fig_7_Glasgow_compareLi(ref_prefix="testCase/infer_test_Glasgow", res_prefix="testCase/infer_test_Glasgow")
-    fig_8_Glasgow_aero_compareLi(ref_prefix="testCase/infer_test_Glasgow/1000m/Li_comparison/aero",
-                                 res_prefix="testCase/infer_test_Glasgow/1000m/Li_comparison/aero")
+    #fig_7_Glasgow_compareLi(ref_prefix="testCase/infer_test_Glasgow", res_prefix="testCase/infer_test_Glasgow")
+    #fig_8_Glasgow_aero_compareLi(ref_prefix="testCase/infer_test_Glasgow/1000m/Li_comparison/aero",
+                                 #res_prefix="testCase/infer_test_Glasgow/1000m/Li_comparison/aero")

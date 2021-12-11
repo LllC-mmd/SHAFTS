@@ -1,7 +1,5 @@
 import glob
 
-from torch import cuda
-
 from train import *
 from dataset import *
 from DL_train import *
@@ -761,15 +759,15 @@ def pred_height_from_tiff_DL_patch(extent: list, out_file: str, tif_ref: dict, p
     activation : str
         Activation function for model output.
         It can be chosen from: `relu`, `sigmoid`. The default is `None`.
-    log_scale: boolean
+    log_scale : boolean
         A flag which controls whether log-transformation is used for target variable.
         The default is `False`.
-    cuda_used: boolean
+    cuda_used : boolean
         A flag which controls whether CUDA is used for inference.
         The default is `False`.
-    v_min: float
+    v_min : float
         Lower bound for prediction.
-    v_max: float
+    v_max : float
         Upper bound for prediction.
 
     """
@@ -1103,7 +1101,7 @@ def pred_height_from_tiff_DL_patch_MTL(extent: list, out_footprint_file: str, ou
                                        crossed=False, base_dir=".", padding=0.005, batch_size=1, tmp_suffix=None,
                                        log_scale=True, cuda_used=False,
                                        h_min=0.0, h_max=None, f_min=0.0, f_max=None):
-    """Predict building height and footprint using Deep-Learing-based (DL) models trained by Multi-Task Learning (STL).
+    """Predict building height and footprint using Deep-Learing-based (DL) models trained by Multi-Task Learning (MTL).
 
     Parameters
     ----------
@@ -1146,10 +1144,10 @@ def pred_height_from_tiff_DL_patch_MTL(extent: list, out_footprint_file: str, ou
     s2_key : str
         Key in `tif_ref[AggOps]` which indicates the path of Sentinel-2's files.
         The default is `sentinel_2`.
-    aux_feat_info: dict
+    aux_feat_info : dict
         A dictionary which contains the auxiliary feature information including `patch_size_ratio` and `path`.
         The default is `None`.
-    crossed: boolean
+    crossed : boolean
         A flag which controls whether a link is to be added between last fully-connected layers of building footprint and height prediction.
         The default is `False`.
     base_dir : str
@@ -1164,25 +1162,22 @@ def pred_height_from_tiff_DL_patch_MTL(extent: list, out_footprint_file: str, ou
     tmp_suffix : str
         Naming suffix for temporary files.
         The default is `None`.
-    activation : str
-        Activation function for model output.
-        It can be chosen from: `relu`, `sigmoid`. The default is `None`.
-    log_scale: boolean
+    log_scale : boolean
         A flag which controls whether log-transformation is used for target variable.
         The default is `False`.
-    cuda_used: boolean
+    cuda_used : boolean
         A flag which controls whether CUDA is used for inference.
         The default is `False`.
-    h_min: float
+    h_min : float
         Lower bound for building height prediction.
         The default is `0.0`.
-    h_max: float
+    h_max : float
         Upper bound for building height prediction.
         The default is `None`.
-    f_min: float
+    f_min : float
         Lower bound for building footprint prediction.
         The default is `0.0`.
-    f_max: float
+    f_max : float
         Upper bound for building footprint prediction.
         The default is `None`.
 
@@ -1513,462 +1508,112 @@ def pred_height_from_tiff_DL_patch_MTL(extent: list, out_footprint_file: str, ou
 
 
 if __name__ == "__main__":
-    h_min = 2.0
-    h_max = 1000.0
-    f_min = 0.0
-    f_max = 1.0
+    # 1. data
+    # 2. model
+    # 3. interface
+    # 4. post-analysis
 
-    # ---mapping settings
-    s1_key = "sentinel_1"
-    s2_key = "sentinel_2"
-    base_dir = "tmp"
+    # ---test scripts
+    # ---global datasets
+    parser = argparse.ArgumentParser(description="building information mapping")
+    parser.add_argument('--variable', type=str, default='height', choices=["height", "footprint"])
 
-    # ---height
-    var = "height"
-    backbone = "senet"
-    model_name = "SEResNet18"
+    # ------model settings
+    parser.add_argument("--MTL", type=str, default="False", choices=["True", "False"],
+                        help="determine whether Multi-Task Learning model is used")
+    parser.add_argument('--model_name', type=str, choices=["ResNet18", "SEResNet18", "CBAMResNet18"],
+                        default="SEResNet18")
+    parser.add_argument('--activation', type=str, choices=["relu", "sigmoid"], default="activation function for model output")
+    # parameter: ONNX
+    parser.add_argument('--pretrained_model', type=str, default="", help="path to pretrained model checkpoint file")
 
-    # ------pretrained models
-    if backbone == "cbam":
-        model_dir_path = {
-            "100m": {
-                backbone: os.path.join("DL_run", var, "check_pt_{0}_100m".format(backbone), "experiment_1", "checkpoint.pth.tar"),
-                backbone + "_MTL": os.path.join("DL_run", var, "check_pt_{0}_100m_MTL".format(backbone), "experiment_5", "checkpoint.pth.tar")
-            },
-            "250m": {
-                backbone: os.path.join("DL_run", var, "check_pt_{0}_250m".format(backbone), "experiment_2", "checkpoint.pth.tar"),
-                backbone + "_MTL": os.path.join("DL_run", var, "check_pt_{0}_250m_MTL".format(backbone), "experiment_5", "checkpoint.pth.tar")
-            },
-            "500m": {
-                backbone: os.path.join("DL_run", var, "check_pt_{0}_500m".format(backbone), "experiment_1", "checkpoint.pth.tar"),
-                backbone + "_MTL": os.path.join("DL_run", var, "check_pt_{0}_500m_MTL".format(backbone), "experiment_5", "checkpoint.pth.tar")
-            },
-            "1000m": {
-                backbone: os.path.join("DL_run", var, "check_pt_{0}_1000m".format(backbone), "experiment_1", "checkpoint.pth.tar"),
-                backbone + "_MTL": os.path.join("DL_run", var, "check_pt_{0}_1000m_MTL".format(backbone), "experiment_4", "checkpoint.pth.tar")
-            }
-        }
-    elif backbone == "senet":
-        model_dir_path = {
-            "100m": {
-                backbone: os.path.join("DL_run", var, "check_pt_{0}_100m".format(backbone), "experiment_6", "checkpoint.pth.tar"),
-                backbone + "_MTL": os.path.join("DL_run", var, "check_pt_{0}_100m_MTL".format(backbone), "experiment_10", "checkpoint.pth.tar")
-            },
-            "250m": {
-                backbone: os.path.join("DL_run", var, "check_pt_{0}_250m".format(backbone), "experiment_6", "checkpoint.pth.tar"),
-                backbone + "_MTL": os.path.join("DL_run", var, "check_pt_{0}_250m_MTL".format(backbone), "experiment_10", "checkpoint.pth.tar")
-            },
-            "500m": {
-                backbone: os.path.join("DL_run", var, "check_pt_{0}_500m".format(backbone), "experiment_6", "checkpoint.pth.tar"),
-                backbone + "_MTL": os.path.join("DL_run", var, "check_pt_{0}_500m_MTL".format(backbone), "experiment_10", "checkpoint.pth.tar")
-            },
-            "1000m": {
-                backbone: os.path.join("DL_run", var, "check_pt_{0}_1000m".format(backbone), "experiment_7", "checkpoint.pth.tar"),
-                backbone + "_MTL": os.path.join("DL_run", var, "check_pt_{0}_1000m_MTL".format(backbone), "experiment_11", "checkpoint.pth.tar")
-            }
-        }
+    # ------file I/O settings
+    parser.add_argument('--sentinel_1', type=str, help="path of Sentinel-1 image for target region")
+    parser.add_argument('--sentinel_2', type=str, help="path of Sentinel-2 image for target region")
+    parser.add_argument('--save_path', type=str, help="path for result saving (multiple outputs can be split by ',')")
+    parser.add_argument('--path_prefix', type=str, help="common path prefix for result saving")
+    parser.add_argument('--tmp_dir', type=str, help="path of a directory for temporary results saving during prediction")
+    parser.add_argument('--tmp_suffix', type=str, default=None, help="suffix for temporary files")
+
+    # ------computation settings
+    parser.add_argument("--extent", type=float, nargs="*",
+                        help="target extent for building information mapping expressed in 'x_min y_min x_max y_max'")
+    parser.add_argument("--resolution", type=float, choices=[0.0009, 0.00225, 0.0045, 0.009],
+                        help="target resolution for building information mapping")
+    parser.add_argument("--patch_size", type=int, help="input size of patches for building information mapping")
+    parser.add_argument("--batch_size", type=int, default=64, help="batch size for inference (default: 64)")
+    parser.add_argument("--padding", type=float, default=0.01, help="padding size outside the target region")
+    parser.add_argument("--v_min", type=str,  help="lower bound for prediction (multiple bounds can be split by ',')")
+    parser.add_argument("--v_max", type=str, help="upper bound for prediction (multiple bounds can be split by ',')")
+
+    parser.add_argument('--log_scale', type=str, choices=["True", "False"], default="False")
+    parser.add_argument('--cuda_used', type=str, choices=["True", "False"], default="False")
+
+    args = parser.parse_args()
+
+    if args.MTL == "True":
+        args.MTL = True
     else:
-        raise NotImplementedError("Unknown models")
+        args.MTL = False
 
-    # ------mapping settings for Glasgow
-    res_map = {"1000m": ([120], 0.009), "500m": ([60], 0.0045), "250m": ([30], 0.00225), "100m": ([15], 0.0009)}
-    
-    extent_ref = {
-        "100m": [-4.4786000, 55.6759000, -3.8828000, 56.0197000],
-        "250m": [-4.4786000, 55.6754500, -3.8823500, 56.0197000],
-        "500m": [-4.4786000, 55.6777000, -3.8846000, 56.0197000],
-        "1000m": [-4.4786000, 55.6777000, -3.8846000, 56.0197000]
-    }
-
-    path_prefix = os.path.join("testCase", "infer_test_Glasgow", "raw_data")
-    tif_ref = {"50pt":
-        {
-            s1_key: os.path.join(path_prefix, "Glasgow_2020_sentinel_1.tif"),
-            s2_key: os.path.join(path_prefix, "Glasgow_2020_sentinel_2.tif"),
-        }
-    }
-
-    # ------execute building height mapping
-    for resolution in ["100m", "250m", "500m", "1000m"]:
-        scale, resolution_deg = res_map[resolution]
-        x_min, y_min, x_max, y_max = extent_ref[resolution]
-        for model in [backbone, backbone+"_MTL"]:
-            ckpt_file = model_dir_path[resolution][model]
-            if "MTL" in ckpt_file:
-                out_footprint_file = os.path.join("testCase", "infer_test_Glasgow", resolution,
-                                                  "_".join(["Glasgow_footprint", model]) + ".tif")
-                out_height_file = os.path.join("testCase", "infer_test_Glasgow", resolution,
-                                               "_".join(["Glasgow_height", model]) + ".tif")
-                pred_height_from_tiff_DL_patch_MTL(x_min, y_min, x_max, y_max, out_footprint_file, out_height_file, tif_ref,
-                                                   patch_size=scale,
-                                                   predictor=model_name,
-                                                   trained_record=ckpt_file,
-                                                   padding=0.01,
-                                                   batch_size=256,
-                                                   resolution=resolution_deg,
-                                                   s1_key=s1_key, s2_key=s2_key, base_dir=base_dir,
-                                                   log_scale=False, cuda_used=True,
-                                                   h_min=h_min, h_max=h_max,
-                                                   f_min=f_min, f_max=f_max)
-            else:
-                out_height_file = os.path.join("testCase", "infer_test_Glasgow", resolution,
-                                               "_".join(["Glasgow", var, model]) + ".tif")
-                pred_height_from_tiff_DL_patch(x_min, y_min, x_max, y_max, out_height_file, tif_ref,
-                                               patch_size=scale,
-                                               predictor=model_name,
-                                               trained_record=ckpt_file,
-                                               padding=0.01,
-                                               batch_size=64,
-                                               resolution=resolution_deg,
-                                               s1_key=s1_key, s2_key=s2_key, base_dir=base_dir,
-                                               log_scale=False, cuda_used=True,
-                                               activation="relu",
-                                               v_min=h_min, v_max=h_max)
-            os.system("rm -rf {0}/*".format(base_dir))
-    
-    '''
-    x_min = -118.4050
-    y_min = 33.8790
-    x_max = -118.0000
-    y_max = 34.1750
-
-    path_prefix = os.path.join("testCase", "infer_test_LosAngeles", "raw_data")
-
-    tif_ref = {"50pt":
-        {
-            s1_key: os.path.join(path_prefix, "LosAngeles_2018_sentinel_1.tif"),
-            s2_key: os.path.join(path_prefix, "LosAngeles_2018_sentinel_2.tif"),
-        }
-    }
-
-    for resolution in ["100m", "250m", "500m", "1000m"]:
-        scale, resolution_deg = res_map[resolution]
-        for model in [backbone, backbone+"_MTL"]:
-            ckpt_file = model_dir_path[resolution][model]
-            if "MTL" in ckpt_file:
-                out_footprint_file = os.path.join("testCase", "infer_test_LosAngeles", resolution,
-                                                  "_".join(["LosAngeles_footprint", model]) + ".tif")
-                out_height_file = os.path.join("testCase", "infer_test_LosAngeles", resolution,
-                                               "_".join(["LosAngeles_height", model]) + ".tif")
-                pred_height_from_tiff_DL_patch_MTL(x_min, y_min, x_max, y_max, out_footprint_file, out_height_file,
-                                                   tif_ref,
-                                                   patch_size=scale,
-                                                   predictor=model_name,
-                                                   trained_record=ckpt_file,
-                                                   padding=0.01,
-                                                   resolution=resolution_deg,
-                                                   s1_key=s1_key, s2_key=s2_key, base_dir=base_dir,
-                                                   log_scale=False, cuda_used=True,
-                                                   h_min=h_min, h_max=h_max,
-                                                   f_min=f_min, f_max=f_max)
-            else:
-                out_height_file = os.path.join("testCase", "infer_test_LosAngeles", resolution,
-                                               "_".join(["LosAngeles", var, model]) + ".tif")
-                pred_height_from_tiff_DL_patch(x_min, y_min, x_max, y_max, out_height_file, tif_ref,
-                                               patch_size=scale,
-                                               predictor=model_name,
-                                               trained_record=ckpt_file,
-                                               padding=0.01,
-                                               resolution=resolution_deg,
-                                               s1_key=s1_key, s2_key=s2_key, base_dir=base_dir,
-                                               log_scale=False, cuda_used=True,
-                                               activation="relu",
-                                               v_min=h_min, v_max=h_max)
-            os.system("rm -rf {0}/*".format(base_dir))
-    '''
-    
-    # ------mapping settings for Beijing and Chicago
-    scale = [120]
-    resolution_deg = 0.009
-    for city_name in ["Beijing", "Chicago"]:
-        if city_name == "Beijing":
-            x_min = 116.204
-            y_min = 39.823
-            x_max = 116.575
-            y_max = 40.038
-            path_prefix = os.path.join("testCase", "infer_test_Beijing", "raw_data")
-            tif_ref = {"50pt":
-                {
-                    s1_key: os.path.join(path_prefix, "BeijingC6_2020_sentinel_1_50pt.tif"),
-                    s2_key: os.path.join(path_prefix, "BeijingC6_2020_sentinel_2_50pt.tif"),
-                }
-            }
-        elif city_name == "Chicago":
-            x_min = -87.740
-            y_min = 41.733
-            x_max = -87.545
-            y_max = 41.996
-            path_prefix = os.path.join("testCase", "infer_test_Chicago", "raw_data")
-            tif_ref = {"50pt":
-                {
-                    s1_key: os.path.join(path_prefix, "Chicago_2018_sentinel_1_50pt.tif"),
-                    s2_key: os.path.join(path_prefix, "Chicago_2018_sentinel_2_50pt.tif"),
-                }
-            }
-        else:
-            raise NotImplementedError("Unknown city")
-
-        # ------execute building height mapping    
-        for model in [backbone, backbone+"_MTL"]:
-            ckpt_file = model_dir_path["1000m"][model]
-            if "MTL" in ckpt_file:
-                out_footprint_file = os.path.join("testCase", "infer_test_"+city_name, "1000m",
-                                                  "_".join([city_name, "footprint", model]) + ".tif")
-                out_height_file = os.path.join("testCase", "infer_test_"+city_name, "1000m",
-                                               "_".join([city_name, "height", model]) + ".tif")
-                pred_height_from_tiff_DL_patch_MTL(x_min, y_min, x_max, y_max, out_footprint_file, out_height_file, tif_ref,
-                                                   patch_size=scale,
-                                                   predictor=model_name,
-                                                   trained_record=ckpt_file,
-                                                   padding=0.01,
-                                                   batch_size=256,
-                                                   resolution=resolution_deg,
-                                                   s1_key=s1_key, s2_key=s2_key, base_dir=base_dir,
-                                                   log_scale=False, cuda_used=True,
-                                                   h_min=h_min, h_max=h_max,
-                                                   f_min=f_min, f_max=f_max)
-            else:
-                out_height_file = os.path.join("testCase", "infer_test_"+city_name, "1000m",
-                                               "_".join([city_name, "height", model]) + ".tif")
-                pred_height_from_tiff_DL_patch(x_min, y_min, x_max, y_max, out_height_file, tif_ref,
-                                               patch_size=scale,
-                                               predictor=model_name,
-                                               trained_record=ckpt_file,
-                                               padding=0.01,
-                                               batch_size=64,
-                                               resolution=resolution_deg,
-                                               s1_key=s1_key, s2_key=s2_key, base_dir=base_dir,
-                                               log_scale=False, cuda_used=True,
-                                               activation="relu",
-                                               v_min=h_min, v_max=h_max)
-            os.system("rm -rf {0}/*".format(base_dir))
-
-    # ---footprint
-    var = "footprint"
-    backbone = "senet"
-    model_name = "SEResNet18"
-
-    # ------pretrained models
-    if backbone == "cbam":
-        model_dir_path = {
-            "100m": {
-                backbone: os.path.join("DL_run", var, "check_pt_{0}_100m".format(backbone), "experiment_1", "checkpoint.pth.tar"),
-                backbone + "_MTL": os.path.join("DL_run", var, "check_pt_{0}_100m_MTL".format(backbone), "experiment_5", "checkpoint.pth.tar")
-            },
-            "250m": {
-                backbone: os.path.join("DL_run", var, "check_pt_{0}_250m".format(backbone), "experiment_0", "checkpoint.pth.tar"),
-                backbone + "_MTL": os.path.join("DL_run", "height", "check_pt_{0}_250m_MTL".format(backbone), "experiment_5", "checkpoint.pth.tar")
-            },
-            "500m": {
-                backbone: os.path.join("DL_run", var, "check_pt_{0}_500m".format(backbone), "experiment_1", "checkpoint.pth.tar"),
-                backbone + "_MTL": os.path.join("DL_run", var, "check_pt_{0}_500m_MTL".format(backbone), "experiment_5", "checkpoint.pth.tar")
-            },
-            "1000m": {
-                backbone: os.path.join("DL_run", var, "check_pt_{0}_1000m".format(backbone), "experiment_2", "checkpoint.pth.tar"),
-                backbone + "_MTL": os.path.join("DL_run", var, "check_pt_{0}_1000m_MTL".format(backbone), "experiment_4", "checkpoint.pth.tar")
-            }
-        }
-    elif backbone == "senet":
-        model_dir_path = {
-            "100m": {
-                backbone: os.path.join("DL_run", var, "check_pt_{0}_100m".format(backbone), "experiment_6", "checkpoint.pth.tar"),
-                backbone + "_MTL": os.path.join("DL_run", var, "check_pt_{0}_100m_MTL".format(backbone), "experiment_10", "checkpoint.pth.tar")
-            },
-            "250m": {
-                backbone: os.path.join("DL_run", var, "check_pt_{0}_250m".format(backbone), "experiment_6", "checkpoint.pth.tar"),
-                backbone + "_MTL": os.path.join("DL_run", "height", "check_pt_{0}_250m_MTL".format(backbone), "experiment_10", "checkpoint.pth.tar")
-            },
-            "500m": {
-                backbone: os.path.join("DL_run", var, "check_pt_{0}_500m".format(backbone), "experiment_6", "checkpoint.pth.tar"),
-                backbone + "_MTL": os.path.join("DL_run", var, "check_pt_{0}_500m_MTL".format(backbone), "experiment_10", "checkpoint.pth.tar")
-            },
-            "1000m": {
-                backbone: os.path.join("DL_run", var, "check_pt_{0}_1000m".format(backbone), "experiment_6", "checkpoint.pth.tar"),
-                backbone + "_MTL": os.path.join("DL_run", var, "check_pt_{0}_1000m_MTL".format(backbone), "experiment_10", "checkpoint.pth.tar")
-            }
-        }
+    if args.log_scale == "True":
+        args.log_scale = True
     else:
-        raise NotImplementedError("Unknown models")
-    
-    # ------mapping settings for Glasgow
-    extent_ref = {
-        "100m": [-4.4786000, 55.6759000, -3.8828000, 56.0197000],
-        "250m": [-4.4786000, 55.6754500, -3.8823500, 56.0197000],
-        "500m": [-4.4786000, 55.6777000, -3.8846000, 56.0197000],
-        "1000m": [-4.4786000, 55.6777000, -3.8846000, 56.0197000]
-    }
+        args.log_scale = False
+
+    if args.cuda_used == "True":
+        args.cuda_used = True
+    else:
+        args.cuda_used = False
+
+    args.save_path = [os.path.join(args.path_prefix, s) for s in args.save_path.split(",")]
+
+    x_min, y_min, x_max, y_max = args.extent
+    args.extent = [x_min, y_min, x_max, y_max]
+
+    v_min = [float(x) for x in args.v_min.split(",")]
+    v_max = [float(x) for x in args.v_max.split(",")]
+
+    args.patch_size = [int(args.patch_size)]
+    args.resolution = args.resolution
+
+    if len(v_min) != len(v_max):
+        raise Exception("Inconsistent assignment for lower and unpper bound")
 
     s1_key = "sentinel_1"
     s2_key = "sentinel_2"
-    base_dir = "tmp"
-    path_prefix = os.path.join("testCase", "infer_test_Glasgow", "raw_data")
-
+    
     tif_ref = {"50pt":
-        {
-            s1_key: os.path.join(path_prefix, "Glasgow_2020_sentinel_1.tif"),
-            s2_key: os.path.join(path_prefix, "Glasgow_2020_sentinel_2.tif"),
-        }
-    }
-
-    # ------execute building footprint mapping   
-    res_map = {"1000m": ([120], 0.009), "500m": ([60], 0.0045), "250m": ([30], 0.00225), "100m": ([15], 0.0009)}
-    
-    for resolution in ["100m", "250m", "500m", "1000m"]:
-        scale, resolution_deg = res_map[resolution]
-        x_min, y_min, x_max, y_max = extent_ref[resolution]
-        for model in [backbone]:
-            ckpt_file = model_dir_path[resolution][model]
-            if "MTL" in ckpt_file:
-                out_footprint_file = os.path.join("testCase", "infer_test_Glasgow", resolution,
-                                                  "_".join(["Glasgow_footprint", model]) + ".tif")
-                out_height_file = os.path.join("testCase", "infer_test_Glasgow", resolution,
-                                               "_".join(["Glasgow_height", model]) + ".tif")
-                pred_height_from_tiff_DL_patch_MTL(x_min, y_min, x_max, y_max, out_footprint_file, out_height_file,
-                                                   tif_ref,
-                                                   patch_size=scale,
-                                                   predictor=model_name,
-                                                   trained_record=ckpt_file,
-                                                   padding=0.01,
-                                                   batch_size=256,
-                                                   resolution=resolution_deg,
-                                                   s1_key=s1_key, s2_key=s2_key, base_dir=base_dir,
-                                                   log_scale=False, cuda_used=True,
-                                                   h_min=h_min, h_max=h_max,
-                                                   f_min=f_min, f_max=f_max)
-            else:
-                out_height_file = os.path.join("testCase", "infer_test_Glasgow", resolution,
-                                               "_".join(["Glasgow", var, model]) + ".tif")
-                pred_height_from_tiff_DL_patch(x_min, y_min, x_max, y_max, out_height_file, tif_ref,
-                                               patch_size=scale,
-                                               predictor=model_name,
-                                               trained_record=ckpt_file,
-                                               padding=0.01,
-                                               batch_size=64,
-                                               resolution=resolution_deg,
-                                               s1_key=s1_key, s2_key=s2_key, base_dir=base_dir,
-                                               log_scale=False, cuda_used=True,
-                                               activation="sigmoid",
-                                               v_min=f_min, v_max=f_max)
-            os.system("rm -rf {0}/*".format(base_dir))
-    
-    '''
-    x_min = -118.4050
-    y_min = 33.8790
-    x_max = -118.0000
-    y_max = 34.1750
-
-    s1_key = "sentinel_1"
-    s2_key = "sentinel_2"
-    base_dir = "tmp"
-    path_prefix = os.path.join("testCase", "infer_test_LosAngeles", "raw_data")
-
-    tif_ref = {"50pt":
-        {
-            s1_key: os.path.join(path_prefix, "LosAngeles_2018_sentinel_1.tif"),
-            s2_key: os.path.join(path_prefix, "LosAngeles_2018_sentinel_2.tif"),
-        }
-    }
-
-    res_map = {"1000m": ([120], 0.009), "500m": ([60], 0.0045), "250m": ([30], 0.00225), "100m": ([15], 0.0009)}
-
-    for resolution in ["100m", "250m", "500m", "1000m"]:
-        scale, resolution_deg = res_map[resolution]
-        for model in [backbone]:
-            ckpt_file = model_dir_path[resolution][model]
-            if "MTL" in ckpt_file:
-                out_footprint_file = os.path.join("testCase", "infer_test_LosAngeles", resolution,
-                                                  "_".join(["LosAngeles_footprint", model]) + ".tif")
-                out_height_file = os.path.join("testCase", "infer_test_LosAngeles", resolution,
-                                               "_".join(["LosAngeles_height", model]) + ".tif")
-                pred_height_from_tiff_DL_patch_MTL(x_min, y_min, x_max, y_max, out_footprint_file, out_height_file,
-                                                   tif_ref,
-                                                   patch_size=scale,
-                                                   predictor=model_name,
-                                                   trained_record=ckpt_file,
-                                                   padding=0.01,
-                                                   batch_size=256,
-                                                   resolution=resolution_deg,
-                                                   s1_key=s1_key, s2_key=s2_key, base_dir=base_dir,
-                                                   log_scale=False, cuda_used=True,
-                                                   h_min=h_min, h_max=h_max,
-                                                   f_min=f_min, f_max=f_max)
-            else:
-                out_height_file = os.path.join("testCase", "infer_test_LosAngeles", resolution,
-                                               "_".join(["LosAngeles", var, model]) + ".tif")
-                pred_height_from_tiff_DL_patch(x_min, y_min, x_max, y_max, out_height_file, tif_ref,
-                                               patch_size=scale,
-                                               predictor=model_name,
-                                               trained_record=ckpt_file,
-                                               padding=0.01,
-                                               batch_size=64,
-                                               resolution=resolution_deg,
-                                               s1_key=s1_key, s2_key=s2_key, base_dir=base_dir,
-                                               log_scale=False, cuda_used=True,
-                                               activation="sigmoid",
-                                               v_min=f_min, v_max=f_max)
-            os.system("rm -rf {0}/*".format(base_dir))
-    '''
-    
-    # ------mapping settings for Beijing and Chicago
-    for city_name in ["Beijing", "Chicago"]:
-        if city_name == "Beijing":
-            x_min = 116.204
-            y_min = 39.823
-            x_max = 116.575
-            y_max = 40.038
-            path_prefix = os.path.join("testCase", "infer_test_Beijing", "raw_data")
-            tif_ref = {"50pt":
                 {
-                    s1_key: os.path.join(path_prefix, "BeijingC6_2020_sentinel_1_50pt.tif"),
-                    s2_key: os.path.join(path_prefix, "BeijingC6_2020_sentinel_2_50pt.tif"),
+                    s1_key: os.path.join(args.path_prefix, args.sentinel_1),
+                    s2_key: os.path.join(args.path_prefix, args.sentinel_2),
                 }
-            }
-        elif city_name == "Chicago":
-            x_min = -87.740
-            y_min = 41.733
-            x_max = -87.545
-            y_max = 41.996
-            path_prefix = os.path.join("testCase", "infer_test_Chicago", "raw_data")
-            tif_ref = {"50pt":
-                {
-                    s1_key: os.path.join(path_prefix, "Chicago_2018_sentinel_1_50pt.tif"),
-                    s2_key: os.path.join(path_prefix, "Chicago_2018_sentinel_2_50pt.tif"),
-                }
-            }
-        else:
-            raise NotImplementedError("Unknown city")
+    }
+    
+    if args.MTL:
+        if len(args.save_path) != 2:
+            raise Exception("Incorrect number of output paths for MTL")
+        pred_height_from_tiff_DL_patch_MTL(x_min, y_min, x_max, y_max, out_footprint_file=args.save_path[1],
+                                           out_height_file=args.save_path[0], tif_ref=tif_ref, patch_size=args.patch_size,
+                                           predictor=args.model_name, trained_record=args.pretrained_model,
+                                           padding=args.padding, batch_size=args.batch_size, tmp_suffix=args.tmp_suffix,
+                                           resolution=args.resolution, s1_key=s1_key, s2_key=s2_key,
+                                           base_dir=args.tmp_dir, log_scale=args.log_scale, cuda_used=args.cuda_used,
+                                           h_min=v_min[0], h_max=v_max[0], f_min=v_min[1], f_max=v_max[1])
+    else:
+        if len(args.save_path) != 1:
+            raise Exception("Incorrect number of output paths for STL")
+        pred_height_from_tiff_DL_patch(extent=args.extent, out_file=args.save_path[0], tif_ref=tif_ref,
+                                       patch_size=args.patch_size, predictor=args.model_name,
+                                       trained_record=args.pretrained_model, padding=args.padding,
+                                       batch_size=args.batch_size, tmp_suffix=args.tmp_suffix, resolution=args.resolution,
+                                       s1_key=s1_key, s2_key=s2_key, base_dir=args.tmp_dir, activation=args.activation,
+                                       log_scale=args.log_scale, cuda_used=args.cuda_used,
+                                       v_min=v_min[0], v_max=v_max[0])
 
-        # ------execute building footprint mapping   
-        for model in [backbone]:
-            ckpt_file = model_dir_path["1000m"][model]
-            if "MTL" in ckpt_file:
-                out_footprint_file = os.path.join("testCase", "infer_test_"+city_name, "1000m",
-                                                  "_".join([city_name, "footprint", model]) + ".tif")
-                out_height_file = os.path.join("testCase", "infer_test_"+city_name, "1000m",
-                                               "_".join([city_name, "height", model]) + ".tif")
-                pred_height_from_tiff_DL_patch_MTL(x_min, y_min, x_max, y_max, out_footprint_file, out_height_file, tif_ref,
-                                                   patch_size=scale,
-                                                   predictor=model_name,
-                                                   trained_record=ckpt_file,
-                                                   padding=0.01,
-                                                   batch_size=256,
-                                                   resolution=resolution_deg,
-                                                   s1_key=s1_key, s2_key=s2_key, base_dir=base_dir,
-                                                   log_scale=False, cuda_used=True,
-                                                   h_min=h_min, h_max=h_max,
-                                                   f_min=f_min, f_max=f_max)
-            else:
-                out_height_file = os.path.join("testCase", "infer_test_"+city_name, "1000m",
-                                               "_".join([city_name, var, model]) + ".tif")
-                pred_height_from_tiff_DL_patch(x_min, y_min, x_max, y_max, out_height_file, tif_ref,
-                                               patch_size=scale,
-                                               predictor=model_name,
-                                               trained_record=ckpt_file,
-                                               padding=0.01,
-                                               batch_size=64,
-                                               resolution=resolution_deg,
-                                               s1_key=s1_key, s2_key=s2_key, base_dir=base_dir,
-                                               log_scale=False, cuda_used=True,
-                                               activation="sigmoid",
-                                               v_min=f_min, v_max=f_max)
-            os.system("rm -rf {0}/*".format(base_dir))
+    # os.system("rm -rf {0}/*".format(args.tmp_dir))
+    tmp_list = glob.glob(os.path.join(args.tmp_dir, "*TEMP*"))
+    for f in tmp_list:
+        os.remove(f)
+
+

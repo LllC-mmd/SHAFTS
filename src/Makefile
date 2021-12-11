@@ -31,6 +31,10 @@ main:
 	$(MAKE) clean
 	${PYTHON} setup.py bdist_wheel
 
+# install package in dev mode and do pytest
+test:
+	pip install -e .
+	pytest -s ${MODULE}/testCase
 
 # If wanted, clean all *.o files after build
 clean:

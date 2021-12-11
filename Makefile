@@ -1,5 +1,5 @@
 # -*- makefile -*-
-.PHONY: main clean pip shaft
+.PHONY: main clean test pip shaft
 
 # OS-specific configurations
 ifeq ($(OS),Windows_NT)
@@ -40,6 +40,10 @@ wheel:
 # house cleaning
 clean:
 	$(MAKE) -C $(src_dir) clean
+
+# make shaft and run test cases
+test:
+	$(MAKE) -C $(src_dir) test
 
 # upload wheels to pypi using twine
 upload:

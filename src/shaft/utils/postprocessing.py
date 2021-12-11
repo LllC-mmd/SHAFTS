@@ -290,7 +290,34 @@ def calc_percolation_thresold(height_file, footprint_file, num_cpu=1, save_path=
         np.save(save_path, cc_size)
 
 
-def calc_percolation_thresold_single(height_file, footprint_file, density_test, h_min=3.0, num_cpu=1, save_path=None):
+def calc_percolation_thresold_single(height_file: str, footprint_file: str, density_test: np.array, h_min=2.0, criteria="entropy", num_cpu=1, save_path=None):
+    """Calculate an optimal building footprint value differentiating between urban and non-urban area based on percolation theory.
+
+    Parameters
+    ----------
+
+    height_file : str
+        Path to the input building height file.
+    footprint_file : str
+        Path to the input building footprint file.
+    density_test : np.array
+        A pre-defined set of potential building footprint threshold.
+    h_min : float
+        A pre-defined minimum building height value differentiating between urban and non-urban area.
+        The default is `2.0`.
+    criteria : str
+        A criterion which describes the property of urban cluster system.
+        It can be chosen from: 
+            `entropy` which stands for Shannon's entropy of urban size distribution.
+            `maxSize` which stands for the area ratio between the largest urban and the summation of all urban area.
+        The default is `entropy`.
+    num_cpu : int
+        Number of expected processes to be run in parallel for acceleration.
+        The default is `1`.
+    save_path : str
+        Output Path for saving the matrix of urban cluster properties under different threshold.
+    """
+
     num_d_test = len(density_test)
 
     height_ds = gdal.Open(height_file)
@@ -305,12 +332,10 @@ def calc_percolation_thresold_single(height_file, footprint_file, density_test, 
     footprint_dta = np.array(footprint_band.ReadAsArray())
     footprint_dta = np.where(footprint_dta == d_noData, 0.0, footprint_dta)
 
-    # cc_maxsize = calc_maxConnectedComponent(height_dta, footprint_dta, h_threshold=10.0, d_threshold=0.1)
-
     loc_id = np.array([i for i in range(0, num_d_test)])
     id_summary = np.arange(num_d_test)
     id_sub = np.array_split(id_summary, num_cpu)
-    arg_list = [(i, loc_id[id_sub[i]], height_dta, footprint_dta, density_test, "entropy", h_min) for i in range(0, num_cpu)]
+    arg_list = [(i, loc_id[id_sub[i]], height_dta, footprint_dta, density_test, criteria, h_min) for i in range(0, num_cpu)]
 
     pool = multiprocessing.Pool(processes=num_cpu)
     res_list = pool.starmap(calc_percolation_thresold_subproc_single, arg_list)
@@ -465,7 +490,41 @@ def calc_mask_fromCCMat(source_ref, ny, nx, height_test, density_test, save_path
     return mask_final
 
 
-def calc_mask_fromCCMat_single(source_ref, ny, nx, density_test, save_path, h_min=2.0, ratio=0.8):
+def calc_mask_fromCCMat_single(source_ref: dict, density_test: np.array, save_path: str, ny=None, nx=None, h_min=2.0, ratio=0.8):
+    """Calculate non-urban mask based on building footprint prediction resulted from different methods.
+
+    Parameters
+    ----------
+
+    source_ref : dict
+        A dictionary which specifies the path of input building height, building footprint and urban cluster system properties.
+        An example can be given as follows:
+            {"method-1":
+                   {
+                       `CCMat`:  `path of .npy file which contains urban cluster properties under different threshold`,
+                       `height`:  `path of .tif file which is the building height prediction result`,
+                       `footprint`: `path of .tif file which is the building footprint prediction result`,
+                    },
+             ......
+           }
+    density_test : np.array
+        A pre-defined set of potential building footprint threshold.
+    save_path : str
+        Output Path for saving the non-urban mask.
+    ny : int
+        Number of output grids to be kept along the latitude direction.
+        The default is `None`.
+    nx : int
+        Number of output grids to be kept along the longitude direction.
+        The default is `None`.
+    h_min : float
+        A pre-defined minimum building height value differentiating between urban and non-urban area.
+        The default is `2.0`.
+    ratio : float
+        A minimum required percentage to identify a pixel as urban pixel by the voting of different methods.
+        The default is `0.8`.
+
+    """
     urban_acc = None
 
     num_source = 0
@@ -476,8 +535,18 @@ def calc_mask_fromCCMat_single(source_ref, ny, nx, density_test, save_path, h_mi
         change_id = np.argmax(cc_binary)
         d_threshold = density_test[change_id]
 
-        if urban_acc is None:
-            urban_acc = np.zeros((ny, nx))
+        footprint_file = source_ref[s]["footprint"]
+        footprint_ds = gdal.Open(footprint_file)
+        footprint_band = footprint_ds.GetRasterBand(1)
+        d_noData = footprint_band.GetNoDataValue()
+
+        footprint_dta = np.array(footprint_band.ReadAsArray())
+        if ny is None:
+            ny = footprint_dta.shape[0]
+        if nx is None:
+            nx = footprint_dta.shape[1]
+        footprint_dta = footprint_dta[0:ny, 0:nx]
+        footprint_dta = np.where(footprint_dta == d_noData, 0.0, footprint_dta)
 
         height_file = source_ref[s]["height"]
         height_ds = gdal.Open(height_file)
@@ -486,12 +555,8 @@ def calc_mask_fromCCMat_single(source_ref, ny, nx, density_test, save_path, h_mi
         height_dta = np.array(height_band.ReadAsArray())[0:ny, 0:nx]
         height_dta = np.where(height_dta == h_noData, 0.0, height_dta)
 
-        footprint_file = source_ref[s]["footprint"]
-        footprint_ds = gdal.Open(footprint_file)
-        footprint_band = footprint_ds.GetRasterBand(1)
-        d_noData = footprint_band.GetNoDataValue()
-        footprint_dta = np.array(footprint_band.ReadAsArray())[0:ny, 0:nx]
-        footprint_dta = np.where(footprint_dta == d_noData, 0.0, footprint_dta)
+        if urban_acc is None:
+            urban_acc = np.zeros((ny, nx))
 
         urban_mask_tmp = np.logical_and(footprint_dta >= d_threshold, height_dta >= h_min)
         urban_mask_tmp = urban_mask_tmp.astype(int)
@@ -517,16 +582,46 @@ def calc_mask_fromCCMat_single(source_ref, ny, nx, density_test, save_path, h_mi
     return mask_final
 
 
-def setNodataByMask(input_file, mask_file, output_file, ny, nx, dtype=gdal.GDT_Float64, noData=None):
+def setNodataByMask(input_file, mask_file, output_file, ny=None, nx=None, dtype=gdal.GDT_Float64, noData=None):
+    """Mask 3D building information prediction results.
+
+    Parameters
+    ----------
+
+    input_file : str
+        Path to the input file to be masked.
+    mask_file : str
+        Path to the masking file.
+    output_file : str
+        Output Path for the masked result.
+    ny : int
+        Number of output grids to be kept along the latitude direction.
+        The default is `None`.
+    nx : int
+        Number of output grids to be kept along the longitude direction.
+        The default is `None`.
+    dtype : float
+        Data type for the output file.
+        The default is `gdal.GDT_Float64`.
+    noData : float
+        NoData value for the output file.
+        The default is `None`.
+
+    """
+    mask_ds = gdal.Open(mask_file)
+    mask_band = mask_ds.GetRasterBand(1)
+    mask_noData = mask_band.GetNoDataValue()
+    mask_dta = np.array(mask_band.ReadAsArray())
+    if ny is None:
+        ny = mask_dta.shape[0]
+    if nx is None:
+        nx = mask_dta.shape[1]
+    mask_dta = mask_dta[0:ny, 0:nx]
+
     input_ds = gdal.Open(input_file)
     input_band = input_ds.GetRasterBand(1)
     input_noData = input_band.GetNoDataValue()
     input_dta = np.array(input_band.ReadAsArray())[0:ny, 0:nx]
-
-    mask_ds = gdal.Open(mask_file)
-    mask_band = mask_ds.GetRasterBand(1)
-    mask_noData = mask_band.GetNoDataValue()
-    mask_dta = np.array(mask_band.ReadAsArray())[0:ny, 0:nx]
 
     if noData is None:
         noData = input_noData
@@ -671,10 +766,11 @@ if __name__ == "__main__":
                                     noData=nodata_mapping[var], masked_value=0, masked_threshold=0.8, num_cpu=25)
     '''
 
-    # ------calculate the minimum foortprint for urban area identification based on percolation theory
+    # ------Glasgow close-ups
+    # ---------calculate the minimum foortprint for urban area identification based on percolation theory
     h_test = np.linspace(2.0, 20.0, 901)
     d_test = np.linspace(0.01, 0.9, 891)
-    '''
+    
     infer_prefix = "../testCase"
     for resolution in ["1000m", "100m", "250m", "500m"]:
         res_prefix = os.path.join(infer_prefix, "infer_test_Glasgow", resolution)
@@ -688,9 +784,7 @@ if __name__ == "__main__":
             footprint_file = os.path.join(res_prefix, "Glasgow_footprint_{0}.tif".format(model))
             calc_percolation_thresold_single(height_file=height_file, footprint_file=footprint_file, density_test=d_test, h_min=5.0,
                                              num_cpu=10, save_path="cc_{0}_{1}.npy".format(model, resolution))
-    '''
 
-    # ------Glasgow close-ups
     infer_prefix = "../testCase"
 
     num_mapping = {"1000m": [38, 66], "100m": [382, 662], "250m": [153, 265], "500m": [76, 132]}
@@ -705,7 +799,7 @@ if __name__ == "__main__":
         source_ref["ref"]["CCMat"] = "cc_ref_{0}.npy".format(resolution)
         source_ref["ref"]["height"] = os.path.join(res_prefix, "Glasgow_2020_building_height_clip.tif")
         source_ref["ref"]["footprint"] = os.path.join(res_prefix, "Glasgow_2020_building_footprint_clip.tif")
-        calc_mask_fromCCMat_single(source_ref, ny, nx, d_test,
+        calc_mask_fromCCMat_single(source_ref=source_ref, density_test=d_test, ny=ny, nx=nx,
                                    save_path=os.path.join(res_prefix, "Glasgow_mask_{0}.tif".format(res_type)),
                                    h_min=5.0, ratio=1.0)
         print(os.path.join(res_prefix, "Glasgow_mask_{0}.tif".format(res_type)))
@@ -718,7 +812,7 @@ if __name__ == "__main__":
             source_ref[res_type]["footprint"] = os.path.join(res_prefix, "Glasgow_footprint_{0}.tif".format(res_type))
 
         for res_type in ["senet", "senet_MTL"]:
-            calc_mask_fromCCMat_single(source_ref, ny, nx, d_test,
+            calc_mask_fromCCMat_single(source_ref=source_ref, density_test=d_test, ny=ny, nx=nx,
                                        save_path=os.path.join(res_prefix, "Glasgow_mask_{0}.tif".format(res_type)),
                                        h_min=5.0, ratio=0.5)
             print(os.path.join(res_prefix, "Glasgow_mask_{0}.tif".format(res_type)))
@@ -777,7 +871,7 @@ if __name__ == "__main__":
     source_ref["ref"]["CCMat"] = "cc_ref_1000m_Li.npy"
     source_ref["ref"]["height"] = os.path.join(res_prefix, "Glasgow_2020_building_height_LiClip.tif")
     source_ref["ref"]["footprint"] = os.path.join(res_prefix, "Glasgow_2020_building_footprint_LiClip.tif")
-    calc_mask_fromCCMat_single(source_ref, ny, nx, d_test,
+    calc_mask_fromCCMat_single(source_ref=source_ref, density_test=d_test, ny=ny, nx=nx
                                save_path=os.path.join(res_prefix, "Glasgow_mask_{0}.tif".format(res_type)),
                                h_min=5.0, ratio=1.0)
     print(os.path.join(res_prefix, "Glasgow_mask_{0}.tif".format(res_type)))
@@ -788,7 +882,7 @@ if __name__ == "__main__":
     source_ref["li"]["CCMat"] = "cc_li_1000m_Li.npy"
     source_ref["li"]["height"] = os.path.join(res_prefix, "Glasgow_height_li2020_clip.tif")
     source_ref["li"]["footprint"] = os.path.join(res_prefix, "Glasgow_footprint_li2020_clip.tif")
-    calc_mask_fromCCMat_single(source_ref, ny, nx, d_test,
+    calc_mask_fromCCMat_single(source_ref=source_ref, density_test=d_test, ny=ny, nx=nx
                                save_path=os.path.join(res_prefix, "Glasgow_mask_{0}.tif".format(res_type)),
                                h_min=5.0, ratio=1.0)
     print(os.path.join(res_prefix, "Glasgow_mask_{0}.tif".format(res_type)))
@@ -801,7 +895,7 @@ if __name__ == "__main__":
         source_ref[res_type]["footprint"] = os.path.join(res_prefix, "Glasgow_footprint_{0}_LiClip.tif".format(res_type))
 
     for res_type in ["senet", "senet_MTL"]:
-        calc_mask_fromCCMat_single(source_ref, ny, nx, d_test,
+        calc_mask_fromCCMat_single(source_ref=source_ref, density_test=d_test, ny=ny, nx=nx
                                    save_path=os.path.join(res_prefix, "Glasgow_mask_{0}.tif".format(res_type)),
                                    h_min=5.0, ratio=0.5)
         print(os.path.join(res_prefix, "Glasgow_mask_{0}.tif".format(res_type)))
