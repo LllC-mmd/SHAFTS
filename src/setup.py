@@ -47,8 +47,8 @@ setup(
     # distclass=BinaryDistribution,
     ext_modules=[],
     install_requires=[
-        "pytorch ~= 1.8",
-        "torchvision ~= 0.9",
+        "pytorch == 1.9.0",
+        "torchvision == 0.10.0 ",
         "albumentations ~= 0.5",
         "scikit-learn ~= 0.24",
         "scikit-image ~= 0.17",
