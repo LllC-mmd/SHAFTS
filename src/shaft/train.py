@@ -430,7 +430,7 @@ def train_baggingSVR_model(training_dataset_path, test_dataset_path, target_vari
 
     # ------select features
     n_se = 6
-    n_feat = int((29 + 60 * n_se) * reduction_ratio)
+    n_feat = int((36 + 60 * n_se) * reduction_ratio)
     select_suffix = "_baggingSVR_n" + str(n_feat) + save_suffix
     feature_train, height_train = feature_selection(feature_train, height_train, num_feature_thresold=n_feat,
                                                     saved=True, suffix=select_suffix)
@@ -528,7 +528,7 @@ def train_SVR_model(training_dataset_path, test_dataset_path, target_variable, a
 
     # ------select features
     n_se = 6
-    n_feat = int((29 + 60 * n_se) * reduction_ratio)
+    n_feat = int((36 + 60 * n_se) * reduction_ratio)
     select_suffix = "_SVR_n" + str(n_feat) + save_suffix
     feature_train, height_train = feature_selection(feature_train, height_train, num_feature_thresold=n_feat,
                                                     saved=True, suffix=select_suffix)
@@ -620,7 +620,7 @@ def train_RF_model(training_dataset_path, test_dataset_path, target_variable, ag
 
     # ------select features
     n_se = 6
-    n_feat = int((29 + 60 * n_se) * reduction_ratio)
+    n_feat = int((36 + 60 * n_se) * reduction_ratio)
     select_suffix = "_rf_n" + str(n_feat) + save_suffix
     feature_train, height_train = feature_selection(feature_train, height_train, num_feature_thresold=n_feat,
                                                     saved=True, suffix=select_suffix)
@@ -711,7 +711,7 @@ def train_XGBoost_model(training_dataset_path, test_dataset_path, target_variabl
 
     # ------select features
     n_se = 6
-    n_feat = int((29 + 60 * n_se) * reduction_ratio)
+    n_feat = int((36 + 60 * n_se) * reduction_ratio)
     select_suffix = "_xgb_n" + str(n_feat) + save_suffix
     feature_train, height_train = feature_selection(feature_train, height_train, num_feature_thresold=n_feat,
                                                     saved=True, suffix=select_suffix)
