@@ -28,7 +28,7 @@ jobs:
     
     - name: Install pypa/build
       run: |
-        $CONDA/bin/conda install pandas wheel pytest tables
+        conda install pandas wheel pytest tables
         make test
         make wheel
 
