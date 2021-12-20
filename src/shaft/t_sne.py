@@ -5,7 +5,7 @@ from train import *
 
 def get_feature_ML(dataset_path, save_dir, target_variable, resolution, aggregate_suffix,
                    filter_path, scaler_path, transformer_path,
-                   scale_level=0, saved=True, num_cpu=24, chunk_size=50000, **kwargs):
+                   scale_level=0, saved=True, num_cpu=24, chunk_size=50000, aux_namelist=None, **kwargs):
     if "save_suffix" in kwargs.keys():
         save_suffix = kwargs["save_suffix"]
     else:
@@ -13,7 +13,7 @@ def get_feature_ML(dataset_path, save_dir, target_variable, resolution, aggregat
 
     feature, var_dta = GetDataPairFromDataset(dataset_path, target_variable, aggregate_suffix,
                                                 scale_level, saved, num_cpu, chunk_size,
-                                                save_suffix=save_suffix)
+                                                save_suffix=save_suffix, aux_namelist=aux_namelist)
 
     feat_filter = joblib.load(filter_path)
     feat_scaler = joblib.load(scaler_path)
@@ -32,27 +32,30 @@ def get_feature_ML(dataset_path, save_dir, target_variable, resolution, aggregat
 
 
 def get_feature_ML_batch(var, base_dir, ds_dir, save_dir):
+    aux_namelist = ["DEM"]
+    num_cpu = 18
+
     model_dir_path = {
         "100m": {
-            "validation_dataset": os.path.join(ds_dir, "patch_data_50pt_s15_100m_test.h5"),
+            "test_dataset": os.path.join(ds_dir, "patch_data_50pt_s15_100m_test.h5"),
             "filter": os.path.join(base_dir, "rf_{0}_100m".format(var), "filter_rf_n194_s15_100m.pkl"),
             "scaler": os.path.join(base_dir, "rf_{0}_100m".format(var), "scaler_rf_n194_s15_100m.pkl"),
             "transformer": os.path.join(base_dir, "rf_{0}_100m".format(var), "transformer_rf_n194_s15_100m.pkl"),
         },
         "250m": {
-            "validation_dataset": os.path.join(ds_dir, "patch_data_50pt_s30_250m_test.h5"),
+            "test_dataset": os.path.join(ds_dir, "patch_data_50pt_s30_250m_test.h5"),
             "filter": os.path.join(base_dir, "rf_{0}_250m".format(var), "filter_rf_n194_s30_250m.pkl"),
             "scaler": os.path.join(base_dir, "rf_{0}_250m".format(var), "scaler_rf_n194_s30_250m.pkl"),
             "transformer": os.path.join(base_dir, "rf_{0}_250m".format(var), "transformer_rf_n194_s30_250m.pkl"),
         },
         "500m": {
-            "validation_dataset": os.path.join(ds_dir, "patch_data_50pt_s60_500m_test.h5"),
+            "test_dataset": os.path.join(ds_dir, "patch_data_50pt_s60_500m_test.h5"),
             "filter": os.path.join(base_dir, "rf_{0}_500m".format(var), "filter_rf_n194_s60_500m.pkl"),
             "scaler": os.path.join(base_dir, "rf_{0}_500m".format(var), "scaler_rf_n194_s60_500m.pkl"),
             "transformer": os.path.join(base_dir, "rf_{0}_500m".format(var), "transformer_rf_n194_s60_500m.pkl"),
         },
         "1000m": {
-            "validation_dataset": os.path.join(ds_dir, "patch_data_50pt_s120_1000m_test.h5"),
+            "test_dataset": os.path.join(ds_dir, "patch_data_50pt_s120_1000m_test.h5"),
             "filter": os.path.join(base_dir, "rf_{0}_1000m".format(var), "filter_rf_n194_s120_1000m.pkl"),
             "scaler": os.path.join(base_dir, "rf_{0}_1000m".format(var), "scaler_rf_n194_s120_1000m.pkl"),
             "transformer": os.path.join(base_dir, "rf_{0}_1000m".format(var), "transformer_rf_n194_s120_1000m.pkl"),
@@ -62,7 +65,7 @@ def get_feature_ML_batch(var, base_dir, ds_dir, save_dir):
     name_mapping = {"height": "BuildingHeight", "footprint": "BuildingFootprint"}
 
     for resolution, input_size in [("100m", 15), ("250m", 30), ("500m", 60), ("1000m", 120)]:
-        val_ds_path = model_dir_path[resolution]["validation_dataset"]
+        val_ds_path = model_dir_path[resolution]["test_dataset"]
         var_name = name_mapping[var]
         get_feature_ML(dataset_path=val_ds_path,
                        save_dir=save_dir,
@@ -71,17 +74,23 @@ def get_feature_ML_batch(var, base_dir, ds_dir, save_dir):
                        aggregate_suffix=["50pt"],
                        filter_path=model_dir_path[resolution]["filter"],
                        scaler_path=model_dir_path[resolution]["scaler"],
-                       transformer_path=model_dir_path[resolution]["transformer"], save_suffix="_ml")
+                       transformer_path=model_dir_path[resolution]["transformer"], save_suffix="_ml",
+                       aux_namelist=aux_namelist, num_cpu=num_cpu)
 
 
-def get_feature_DL(var, resolution, model_name, dataset_path, model_path, input_size, save_dir, activation=None, target_id_shift=None, log_scale=False, cuda_used=True, batch_size=128, num_workers=4, cached=True):
+def get_feature_DL(var, resolution, model_name, dataset_path, model_path, input_size, save_dir, aux_feat_info=None, activation=None, target_id_shift=None, log_scale=False, cuda_used=True, batch_size=128, num_workers=4, cached=True):
+    if aux_feat_info is not None:
+        aux_namelist = sorted(aux_feat_info.keys())
+        aux_size = int(aux_feat_info[aux_namelist[0]] * input_size)
+
     # ------define data loader
     if model_name.endswith("MTL"):
         val_loader = load_data_lmdb_MTL(dataset_path, batch_size, num_workers, ["50pt"], mode="valid",
-                                        cached=cached, log_scale=log_scale)
+                                        cached=cached, log_scale=log_scale, aux_namelist=aux_namelist)
     else:
         val_loader = load_data_lmdb(dataset_path, batch_size, num_workers, ["50pt"], mode="valid",
-                                    cached=cached, target_id_shift=target_id_shift, log_scale=log_scale)
+                                    cached=cached, target_id_shift=target_id_shift, log_scale=log_scale,
+                                    aux_namelist=aux_namelist)
 
     # ------load pretrained models
     if input_size == 15:
@@ -98,46 +107,89 @@ def get_feature_DL(var, resolution, model_name, dataset_path, model_path, input_
         num_block = 1
 
     if model_name == "senet":
-        model_pred = model_SEResNet(in_plane=in_plane, input_channels=6, input_size=input_size,
-                                    num_block=num_block, log_scale=log_scale, activation=activation,
-                                    cuda_used=cuda_used, trained_record=model_path)
+        if aux_namelist is None:
+            model_pred = model_SEResNet(in_plane=in_plane, input_channels=6, input_size=input_size,
+                                            num_block=num_block, log_scale=log_scale, activation=activation,
+                                            cuda_used=cuda_used, trained_record=model_path)
+        else:
+            model_pred = model_SEResNet_aux(in_plane=in_plane, input_channels=6, input_size=input_size,
+                                                aux_input_size=aux_size, num_aux=len(aux_namelist),
+                                                num_block=num_block, log_scale=log_scale, activation=activation,
+                                                cuda_used=cuda_used, trained_record=model_path)
     elif model_name == "senetMTL":
-        model_pred = model_SEResNetMTL(in_plane=in_plane, input_channels=6, input_size=input_size,
-                                       num_block=num_block, log_scale=log_scale,
-                                       cuda_used=cuda_used, trained_record=model_path)
+        if aux_namelist is None:
+            model_pred = model_SEResNetMTL(in_plane=in_plane, input_channels=6, input_size=input_size,
+                                                num_block=num_block, log_scale=log_scale,
+                                                cuda_used=cuda_used, trained_record=model_path)
+        else:
+            model_pred = model_SEResNetMTL_aux(in_plane=in_plane, input_channels=6, input_size=input_size,
+                                                aux_input_size=aux_size, num_aux=len(aux_namelist),
+                                                num_block=num_block, log_scale=log_scale,
+                                                cuda_used=cuda_used, trained_record=model_path)
     elif model_name == "cbam":
-        model_pred = model_CBAMResNet(in_plane=in_plane, input_channels=6, input_size=input_size, num_block=num_block,
-                                      log_scale=log_scale, activation=activation, cuda_used=cuda_used,
-                                      trained_record=model_path)
+        if aux_namelist is None:
+            model_pred = model_CBAMResNet(in_plane=in_plane, input_channels=6, input_size=input_size,
+                                            num_block=num_block, log_scale=log_scale, activation=activation,
+                                            cuda_used=cuda_used, trained_record=model_path)
+        else:
+            model_pred = model_CBAMResNet_aux(in_plane=in_plane, input_channels=6, input_size=input_size,
+                                                aux_input_size=aux_size, num_aux=len(aux_namelist),
+                                                num_block=num_block, log_scale=log_scale, activation=activation,
+                                                cuda_used=cuda_used, trained_record=model_path)
     elif model_name == "cbamMTL":
-        model_pred = model_CBAMResNetMTL(in_plane=in_plane, input_channels=6, input_size=input_size,
-                                         num_block=num_block,
-                                         log_scale=log_scale, cuda_used=cuda_used, trained_record=model_path)
+        if aux_namelist is None:
+            model_pred = model_CBAMResNetMTL(in_plane=in_plane, input_channels=6, input_size=input_size,
+                                                num_block=num_block, log_scale=log_scale,
+                                                cuda_used=cuda_used, trained_record=model_path)
+        else:
+            model_pred = model_CBAMResNetMTL_aux(in_plane=in_plane, input_channels=6, input_size=input_size,
+                                                    aux_input_size=aux_size, num_aux=len(aux_namelist),
+                                                    num_block=num_block, log_scale=log_scale,
+                                                    cuda_used=cuda_used, trained_record=model_path)
+    else:
+        raise NotImplementedError
+    
     if cuda_used:
         model_pred = model_pred.cuda()
 
     model_pred.eval()
-    # ------do target variable prediction
+    # ------extract features after the calculation of NN's backbone part
     feat_list = []
     target_list = []
-    for i, sample in enumerate(val_loader):
-        if "MTL" in model_name:
-            input_band, footprint, height = sample["feature"], sample["footprint"], sample["height"]
-            if var == "height":
-                target = height
-            else:
-                target = footprint
+    if model_name.endswith("MTL"):
+        if aux_namelist is None:
+            for i, sample in enumerate(val_loader):
+                input_band, target = sample["feature"], sample[var]
+                if cuda_used:
+                    input_band = input_band.cuda()
+                with torch.no_grad():
+                    feat = model_pred.get_feature(input_band)
         else:
-            input_band, target = sample["feature"], sample["value"]
+            for i, sample in enumerate(val_loader):
+                input_band, aux_feat, target = sample["feature"], sample["aux_feature"], sample[var]
+                if cuda_used:
+                    input_band, aux_feat = input_band.cuda(), aux_feat.cuda()
+                with torch.no_grad():
+                    feat = model_pred.get_feature(input_band, aux_feat)
+    else:
+        if aux_namelist is None:
+            for i, sample in enumerate(val_loader):
+                input_band, target = sample["feature"], sample["value"]
+                if cuda_used:
+                    input_band = input_band.cuda()
+                with torch.no_grad():
+                    feat = model_pred.get_feature(input_band)
+        else:
+            for i, sample in enumerate(val_loader):
+                input_band, aux_feat, target = sample["feature"], sample["aux_feature"], sample["value"], 
+                if cuda_used:
+                    input_band, aux_feat = input_band.cuda(), aux_feat.cuda()
+                with torch.no_grad():
+                    feat = model_pred.get_feature(input_band, aux_feat)
 
-        if cuda_used:
-            input_band = input_band.cuda()
-        with torch.no_grad():
-            feat = model_pred.get_feature(input_band)
-
-        feat = feat.data.cpu().numpy()
-        feat_list.append(feat)
-        target_list.append(target)
+    feat = feat.data.cpu().numpy()
+    feat_list.append(feat)
+    target_list.append(target)
 
     # ------save the prediction and target result
     feat_dta = np.concatenate(feat_list, axis=0)
@@ -151,6 +203,7 @@ def get_feature_DL(var, resolution, model_name, dataset_path, model_path, input_
 
 def get_feature_DL_batch(base_dir, ds_dir, save_dir, var="height", log_scale=False, cuda_used=True, batch_size=128, num_workers=4, cached=True):
     backbone = "senet"
+    aux_feat_info = {"DEM": 1.0}
 
     torch.multiprocessing.set_sharing_strategy('file_system')
     if var == "height":
@@ -158,32 +211,32 @@ def get_feature_DL_batch(base_dir, ds_dir, save_dir, var="height", log_scale=Fal
         activation = "relu"
         model_dir_path = {
             "100m": {
-                "validation_dataset": os.path.join(ds_dir, "patch_data_50pt_s15_100m_test.lmdb"),
-                "senet": os.path.join(base_dir, var, "check_pt_senet_100m", "experiment_6", "checkpoint.pth.tar"),
-                "cbam": os.path.join(base_dir, var, "check_pt_cbam_100m", "experiment_1", "checkpoint.pth.tar"),
-                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_100m_MTL", "experiment_10", "checkpoint.pth.tar"),
-                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_100m_MTL", "experiment_5", "checkpoint.pth.tar")
+                "test_dataset": os.path.join(ds_dir, "patch_data_50pt_s15_100m_test.lmdb"),
+                "senet": os.path.join(base_dir, var, "check_pt_senet_100m", "experiment_0", "checkpoint.pth.tar"),
+                "cbam": os.path.join(base_dir, var, "check_pt_cbam_100m", "experiment_0", "checkpoint.pth.tar"),
+                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_100m_MTL", "experiment_1", "checkpoint.pth.tar"),
+                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_100m_MTL", "experiment_1", "checkpoint.pth.tar")
             },
             "250m": {
-                "validation_dataset": os.path.join(ds_dir, "patch_data_50pt_s30_250m_test.lmdb"),
-                "senet": os.path.join(base_dir, var, "check_pt_senet_250m", "experiment_6", "checkpoint.pth.tar"),
-                "cbam": os.path.join(base_dir, var, "check_pt_cbam_250m", "experiment_5", "checkpoint.pth.tar"),
-                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_250m_MTL", "experiment_10", "checkpoint.pth.tar"),
-                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_250m_MTL", "experiment_5", "checkpoint.pth.tar")
+                "test_dataset": os.path.join(ds_dir, "patch_data_50pt_s30_250m_test.lmdb"),
+                "senet": os.path.join(base_dir, var, "check_pt_senet_250m", "experiment_0", "checkpoint.pth.tar"),
+                "cbam": os.path.join(base_dir, var, "check_pt_cbam_250m", "experiment_0", "checkpoint.pth.tar"),
+                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_250m_MTL", "experiment_1", "checkpoint.pth.tar"),
+                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_250m_MTL", "experiment_1", "checkpoint.pth.tar")
             },
             "500m": {
-                "validation_dataset": os.path.join(ds_dir, "patch_data_50pt_s60_500m_test.lmdb"),
-                "senet": os.path.join(base_dir, var, "check_pt_senet_500m", "experiment_6", "checkpoint.pth.tar"),
-                "cbam": os.path.join(base_dir, var, "check_pt_cbam_500m", "experiment_1", "checkpoint.pth.tar"),
-                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_500m_MTL", "experiment_10", "checkpoint.pth.tar"),
-                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_500m_MTL", "experiment_5", "checkpoint.pth.tar")
+                "test_dataset": os.path.join(ds_dir, "patch_data_50pt_s60_500m_test.lmdb"),
+                "senet": os.path.join(base_dir, var, "check_pt_senet_500m", "experiment_0", "checkpoint.pth.tar"),
+                "cbam": os.path.join(base_dir, var, "check_pt_cbam_500m", "experiment_0", "checkpoint.pth.tar"),
+                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_500m_MTL", "experiment_1", "checkpoint.pth.tar"),
+                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_500m_MTL", "experiment_1", "checkpoint.pth.tar")
             },
             "1000m": {
-                "validation_dataset": os.path.join(ds_dir, "patch_data_50pt_s120_1000m_test.lmdb"),
-                "senet": os.path.join(base_dir, var, "check_pt_senet_1000m", "experiment_7", "checkpoint.pth.tar"),
-                "cbam": os.path.join(base_dir, var, "check_pt_cbam_1000m", "experiment_1", "checkpoint.pth.tar"),
-                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_1000m_MTL", "experiment_11", "checkpoint.pth.tar"),
-                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_1000m_MTL", "experiment_4", "checkpoint.pth.tar")
+                "test_dataset": os.path.join(ds_dir, "patch_data_50pt_s120_1000m_test.lmdb"),
+                "senet": os.path.join(base_dir, var, "check_pt_senet_1000m", "experiment_0", "checkpoint.pth.tar"),
+                "cbam": os.path.join(base_dir, var, "check_pt_cbam_1000m", "experiment_0", "checkpoint.pth.tar"),
+                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_1000m_MTL", "experiment_1", "checkpoint.pth.tar"),
+                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_1000m_MTL", "experiment_1", "checkpoint.pth.tar")
             }
         }
     elif var == "footprint":
@@ -191,39 +244,39 @@ def get_feature_DL_batch(base_dir, ds_dir, save_dir, var="height", log_scale=Fal
         activation = "sigmoid"
         model_dir_path = {
             "100m": {
-                "validation_dataset": os.path.join(ds_dir, "patch_data_50pt_s15_100m_test.lmdb"),
-                "senet": os.path.join(base_dir, var, "check_pt_senet_100m", "experiment_6", "checkpoint.pth.tar"),
-                "cbam": os.path.join(base_dir, var, "check_pt_cbam_100m", "experiment_1", "checkpoint.pth.tar"),
-                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_100m_MTL", "experiment_10", "checkpoint.pth.tar"),
-                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_100m_MTL", "experiment_5", "checkpoint.pth.tar")
+                "test_dataset": os.path.join(ds_dir, "patch_data_50pt_s15_100m_test.lmdb"),
+                "senet": os.path.join(base_dir, var, "check_pt_senet_100m", "experiment_0", "checkpoint.pth.tar"),
+                "cbam": os.path.join(base_dir, var, "check_pt_cbam_100m", "experiment_0", "checkpoint.pth.tar"),
+                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_100m_MTL", "experiment_1", "checkpoint.pth.tar"),
+                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_100m_MTL", "experiment_1", "checkpoint.pth.tar")
             },
             "250m": {
-                "validation_dataset": os.path.join(ds_dir, "patch_data_50pt_s30_250m_test.lmdb"),
-                "senet": os.path.join(base_dir, var, "check_pt_senet_250m", "experiment_6", "checkpoint.pth.tar"),
+                "test_dataset": os.path.join(ds_dir, "patch_data_50pt_s30_250m_test.lmdb"),
+                "senet": os.path.join(base_dir, var, "check_pt_senet_250m", "experiment_0", "checkpoint.pth.tar"),
                 "cbam": os.path.join(base_dir, var, "check_pt_cbam_250m", "experiment_0", "checkpoint.pth.tar"),
-                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_250m_MTL", "experiment_10", "checkpoint.pth.tar"),
-                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_250m_MTL", "experiment_5", "checkpoint.pth.tar")
+                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_250m_MTL", "experiment_1", "checkpoint.pth.tar"),
+                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_250m_MTL", "experiment_1", "checkpoint.pth.tar")
             },
             "500m": {
-                "validation_dataset": os.path.join(ds_dir, "patch_data_50pt_s60_500m_test.lmdb"),
-                "senet": os.path.join(base_dir, var, "check_pt_senet_500m", "experiment_6", "checkpoint.pth.tar"),
-                "cbam": os.path.join(base_dir, var, "check_pt_cbam_500m", "experiment_1", "checkpoint.pth.tar"),
-                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_500m_MTL", "experiment_10", "checkpoint.pth.tar"),
-                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_500m_MTL", "experiment_5", "checkpoint.pth.tar")
+                "test_dataset": os.path.join(ds_dir, "patch_data_50pt_s60_500m_test.lmdb"),
+                "senet": os.path.join(base_dir, var, "check_pt_senet_500m", "experiment_0", "checkpoint.pth.tar"),
+                "cbam": os.path.join(base_dir, var, "check_pt_cbam_500m", "experiment_0", "checkpoint.pth.tar"),
+                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_500m_MTL", "experiment_1", "checkpoint.pth.tar"),
+                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_500m_MTL", "experiment_1", "checkpoint.pth.tar")
             },
             "1000m": {
-                "validation_dataset": os.path.join(ds_dir, "patch_data_50pt_s120_1000m_test.lmdb"),
-                "senet": os.path.join(base_dir, var, "check_pt_senet_1000m", "experiment_6", "checkpoint.pth.tar"),
-                "cbam": os.path.join(base_dir, var, "check_pt_cbam_1000m", "experiment_2", "checkpoint.pth.tar"),
-                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_1000m_MTL", "experiment_11", "checkpoint.pth.tar"),
-                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_1000m_MTL", "experiment_4", "checkpoint.pth.tar")
+                "test_dataset": os.path.join(ds_dir, "patch_data_50pt_s120_1000m_test.lmdb"),
+                "senet": os.path.join(base_dir, var, "check_pt_senet_1000m", "experiment_0", "checkpoint.pth.tar"),
+                "cbam": os.path.join(base_dir, var, "check_pt_cbam_1000m", "experiment_0", "checkpoint.pth.tar"),
+                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_1000m_MTL", "experiment_1", "checkpoint.pth.tar"),
+                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_1000m_MTL", "experiment_1", "checkpoint.pth.tar")
             }
         }
     else:
         raise NotImplementedError("Unknown target variable")
 
     for resolution, input_size in [("100m", 15), ("250m", 30), ("500m", 60), ("1000m", 120)]:
-        val_ds_path = model_dir_path[resolution]["validation_dataset"]
+        val_ds_path = model_dir_path[resolution]["test_dataset"]
         for model in [backbone, backbone + "MTL"]:
             model_file = model_dir_path[resolution][model]
             if model == backbone:
@@ -232,6 +285,7 @@ def get_feature_DL_batch(base_dir, ds_dir, save_dir, var="height", log_scale=Fal
                                model_path=model_file,
                                input_size=input_size,
                                save_dir=save_dir,
+                               aux_feat_info=aux_feat_info,
                                activation=activation, target_id_shift=target_id_shift,
                                log_scale=log_scale, cuda_used=cuda_used,
                                batch_size=batch_size,
@@ -242,6 +296,7 @@ def get_feature_DL_batch(base_dir, ds_dir, save_dir, var="height", log_scale=Fal
                                model_path=model_file,
                                input_size=input_size,
                                save_dir=save_dir,
+                               aux_feat_info=aux_feat_info,
                                activation=None, target_id_shift=None,
                                log_scale=log_scale, cuda_used=cuda_used,
                                batch_size=batch_size,
@@ -380,9 +435,9 @@ def fig_4_model_feature_tSNE_3x4(var, res_prefix, save_suffix=None):
 
 
 if __name__ == "__main__":
-    #get_feature_DL_batch(base_dir="DL_run", ds_dir="/data/lyy/BuildingProject/dataset", save_dir="records_feat", var="height", log_scale=False)
-    #get_feature_DL_batch(base_dir="DL_run", ds_dir="/data/lyy/BuildingProject/dataset", save_dir="records_feat", var="footprint", log_scale=False)
-    #get_feature_ML_batch(var="height", base_dir="ML_run/height", ds_dir="/data/lyy/BuildingProject/dataset", save_dir="records_feat/height")
-    fig_4_model_feature_tSNE_3x4(var="height", res_prefix="records_feat/height", save_suffix="height")
+    get_feature_DL_batch(base_dir="DL_run", ds_dir="/data/lyy/BuildingProject/dataset", save_dir="records_feat", var="height", log_scale=False)
+    get_feature_DL_batch(base_dir="DL_run", ds_dir="/data/lyy/BuildingProject/dataset", save_dir="records_feat", var="footprint", log_scale=False)
+    get_feature_ML_batch(var="height", base_dir="ML_run/height", ds_dir="/data/lyy/BuildingProject/dataset", save_dir="records_feat/height")
+    #fig_4_model_feature_tSNE_3x4(var="height", res_prefix="records_feat/height", save_suffix="height")
     #get_feature_ML_batch(var="footprint", base_dir="ML_run/footprint", ds_dir="/data/lyy/BuildingProject/dataset", save_dir="records_feat/footprint")
     #fig_4_model_feature_tSNE_3x4(var="footprint", res_prefix="records_feat/footprint", save_suffix="footprint")

@@ -11,7 +11,7 @@ from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
 import matplotlib.colors as colors
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.lines import Line2D
-from matplotlib.patches import Patch
+from matplotlib.patches import Patch, Rectangle
 
 from visualization import *
 from DL_train import *
@@ -113,11 +113,11 @@ def get_prediction_ML(base_dir, feature_dir, save_dir, var="height", log_scale=T
                         transformer_pred = joblib.load(os.path.join(model_dir, f))
                     elif f.startswith(model):
                         if model == "rf":
-                            model_pred = RandomForestModel(n_jobs=8)
+                            model_pred = RandomForestModel(n_jobs=10)
                         elif model == "xgb":
-                            model_pred = XGBoostRegressionModel(n_jobs=8)
+                            model_pred = XGBoostRegressionModel(n_jobs=10)
                         elif model == "baggingSVR":
-                            model_pred = BaggingSupportVectorRegressionModel(n_jobs=4)
+                            model_pred = BaggingSupportVectorRegressionModel(n_jobs=20)
                         elif model == "SVR":
                             model_pred = SupportVectorRegressionModel()
                         else:
@@ -145,14 +145,32 @@ def get_prediction_ML(base_dir, feature_dir, save_dir, var="height", log_scale=T
                 print("\t".join([model, var, resolution, "finished"]))
 
 
-def get_prediction_DL(var, resolution, model_name, dataset_path, model_path, input_size, save_dir, activation=None, target_id_shift=None, log_scale=False, cuda_used=True, batch_size=128, num_workers=4, cached=True):
+def get_prediction_DL(var, resolution, model_name, dataset_path, model_path, input_size, save_dir, aux_feat_info=None, activation=None, target_id_shift=None, log_scale=False, cuda_used=True, batch_size=128, num_workers=4, cached=True):
+    if aux_feat_info is not None:
+        aux_namelist = sorted(aux_feat_info.keys())
+        aux_size = int(aux_feat_info[aux_namelist[0]] * input_size)
+
     # ------define data loader
     if model_name.endswith("MTL"):
         val_loader = load_data_lmdb_MTL(dataset_path, batch_size, num_workers, ["50pt"], mode="valid",
-                                        cached=cached, log_scale=log_scale)
+                                        cached=cached, log_scale=log_scale, aux_namelist=aux_namelist)
     else:
         val_loader = load_data_lmdb(dataset_path, batch_size, num_workers, ["50pt"], mode="valid",
-                                    cached=cached, target_id_shift=target_id_shift, log_scale=log_scale)
+                                    cached=cached, target_id_shift=target_id_shift, log_scale=log_scale,
+                                    aux_namelist=aux_namelist)
+
+    '''
+    if target_id_shift == 1:
+        var = "BuildingFootprint"
+    else:
+        var = "BuildingHeight"
+    if model_name.endswith("MTL"):
+        val_loader = load_data_hdf5_MTL(dataset_path, batch_size, num_workers, aggregation_list=["50pt"], mode="valid",
+                                            cached=cached, log_scale=log_scale, aux_namelist=aux_namelist)
+    else:
+        val_loader = load_data_hdf5(dataset_path, batch_size, num_workers, target_variable=var, aggregation_list=["50pt"], mode="valid",
+                                        cached=cached, log_scale=log_scale, aux_namelist=aux_namelist)
+    '''
 
     # ------load pretrained models
     if input_size == 15:
@@ -169,21 +187,48 @@ def get_prediction_DL(var, resolution, model_name, dataset_path, model_path, inp
         num_block = 1
 
     if model_name == "senet":
-        model_pred = model_SEResNet(in_plane=in_plane, input_channels=6, input_size=input_size,
-                                    num_block=num_block, log_scale=log_scale, activation=activation,
-                                    cuda_used=cuda_used, trained_record=model_path)
+        if aux_namelist is None:
+            model_pred = model_SEResNet(in_plane=in_plane, input_channels=6, input_size=input_size,
+                                            num_block=num_block, log_scale=log_scale, activation=activation,
+                                            cuda_used=cuda_used, trained_record=model_path)
+        else:
+            model_pred = model_SEResNet_aux(in_plane=in_plane, input_channels=6, input_size=input_size,
+                                                aux_input_size=aux_size, num_aux=len(aux_namelist),
+                                                num_block=num_block, log_scale=log_scale, activation=activation,
+                                                cuda_used=cuda_used, trained_record=model_path)
     elif model_name == "senetMTL":
-        model_pred = model_SEResNetMTL(in_plane=in_plane, input_channels=6, input_size=input_size,
-                                       num_block=num_block, log_scale=log_scale,
-                                       cuda_used=cuda_used, trained_record=model_path)
+        if aux_namelist is None:
+            model_pred = model_SEResNetMTL(in_plane=in_plane, input_channels=6, input_size=input_size,
+                                                num_block=num_block, log_scale=log_scale,
+                                                cuda_used=cuda_used, trained_record=model_path)
+        else:
+            model_pred = model_SEResNetMTL_aux(in_plane=in_plane, input_channels=6, input_size=input_size,
+                                                aux_input_size=aux_size, num_aux=len(aux_namelist),
+                                                num_block=num_block, log_scale=log_scale,
+                                                cuda_used=cuda_used, trained_record=model_path)
     elif model_name == "cbam":
-        model_pred = model_CBAMResNet(in_plane=in_plane, input_channels=6, input_size=input_size, num_block=num_block,
-                                      log_scale=log_scale, activation=activation, cuda_used=cuda_used,
-                                      trained_record=model_path)
+        if aux_namelist is None:
+            model_pred = model_CBAMResNet(in_plane=in_plane, input_channels=6, input_size=input_size,
+                                            num_block=num_block, log_scale=log_scale, activation=activation,
+                                            cuda_used=cuda_used, trained_record=model_path)
+        else:
+            model_pred = model_CBAMResNet_aux(in_plane=in_plane, input_channels=6, input_size=input_size,
+                                                aux_input_size=aux_size, num_aux=len(aux_namelist),
+                                                num_block=num_block, log_scale=log_scale, activation=activation,
+                                                cuda_used=cuda_used, trained_record=model_path)
     elif model_name == "cbamMTL":
-        model_pred = model_CBAMResNetMTL(in_plane=in_plane, input_channels=6, input_size=input_size,
-                                         num_block=num_block,
-                                         log_scale=log_scale, cuda_used=cuda_used, trained_record=model_path)
+        if aux_namelist is None:
+            model_pred = model_CBAMResNetMTL(in_plane=in_plane, input_channels=6, input_size=input_size,
+                                                num_block=num_block, log_scale=log_scale,
+                                                cuda_used=cuda_used, trained_record=model_path)
+        else:
+            model_pred = model_CBAMResNetMTL_aux(in_plane=in_plane, input_channels=6, input_size=input_size,
+                                                    aux_input_size=aux_size, num_aux=len(aux_namelist),
+                                                    num_block=num_block, log_scale=log_scale,
+                                                    cuda_used=cuda_used, trained_record=model_path)
+    else:
+        raise NotImplementedError
+
     if cuda_used:
         model_pred = model_pred.cuda()
 
@@ -195,13 +240,21 @@ def get_prediction_DL(var, resolution, model_name, dataset_path, model_path, inp
         res_list = {"height": [], "footprint": []}
         target_list = {"height": [], "footprint": []}
         for i, sample in enumerate(val_loader):
-            input_band, target_footprint, target_height = sample["feature"], sample["footprint"], sample["height"]
-            if cuda_used:
-                input_band, target_footprint, target_height = input_band.cuda(), target_footprint.cuda(), target_height.cuda()
-            with torch.no_grad():
-                output_footprint, output_height = model_pred(input_band)
-                output_footprint = torch.squeeze(output_footprint)
-                output_height = torch.squeeze(output_height)
+            if aux_namelist is None:
+                input_band, target_footprint, target_height = sample["feature"], sample["footprint"], sample["height"]
+                if cuda_used:
+                    input_band, target_footprint, target_height = input_band.cuda(), target_footprint.cuda(), target_height.cuda()
+                with torch.no_grad():
+                    output_footprint, output_height = model_pred(input_band)
+            else:
+                input_band, aux_feat, target_footprint, target_height = sample["feature"], sample["aux_feature"], sample["footprint"], sample["height"]
+                if cuda_used:
+                    input_band, aux_feat, target_footprint, target_height = input_band.cuda(), aux_feat.cuda(), target_footprint.cuda(), target_height.cuda()
+                with torch.no_grad():
+                    output_footprint, output_height = model_pred(input_band, aux_feat)
+            
+            output_footprint = torch.squeeze(output_footprint)
+            output_height = torch.squeeze(output_height)
 
             pred_footprint = output_footprint.data.cpu().numpy()
             res_list["footprint"].append(pred_footprint)
@@ -215,12 +268,20 @@ def get_prediction_DL(var, resolution, model_name, dataset_path, model_path, inp
         res_list = {var: []}
         target_list = {var: []}
         for i, sample in enumerate(val_loader):
-            input_band, target = sample["feature"], sample["value"]
-            if cuda_used:
-                input_band, target = input_band.cuda(), target.cuda()
-            with torch.no_grad():
-                output = model_pred(input_band)
-                output = torch.squeeze(output)
+            if aux_namelist is None:
+                input_band, target = sample["feature"], sample["value"]
+                if cuda_used:
+                    input_band, target = input_band.cuda(), target.cuda()
+                with torch.no_grad():
+                    output = model_pred(input_band)
+            else:
+                input_band, target, aux_feat = sample["feature"], sample["value"], sample["aux_feature"]
+                if cuda_used:
+                    input_band, target, aux_feat = input_band.cuda(), target.cuda(), aux_feat.cuda()
+                with torch.no_grad():
+                    output = model_pred(input_band, aux_feat)
+            
+            output = torch.squeeze(output)
 
             output = output.data.cpu().numpy()
             res_list[var].append(output)
@@ -242,38 +303,39 @@ def get_prediction_DL(var, resolution, model_name, dataset_path, model_path, inp
 
 def get_prediction_DL_batch(base_dir, ds_dir, save_dir, var="height", log_scale=False, cuda_used=True, batch_size=128, num_workers=4, cached=True):
     backbone = "senet"
+    aux_feat_info = {"DEM": 1.0}
 
     if var == "height":
         target_id_shift = 2
         activation = "relu"
         model_dir_path = {
             "100m": {
-                "validation_dataset": os.path.join(ds_dir, "patch_data_50pt_s15_100m_valid.lmdb"),
-                "senet": os.path.join(base_dir, var, "check_pt_senet_100m", "experiment_4", "checkpoint.pth.tar"),
-                "cbam": os.path.join(base_dir, var, "check_pt_cbam_100m", "experiment_1", "checkpoint.pth.tar"),
-                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_100m_MTL", "experiment_11", "checkpoint.pth.tar"),
-                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_100m_MTL", "experiment_5", "checkpoint.pth.tar")
+                "test_dataset": os.path.join(ds_dir, "patch_data_50pt_s15_100m_test.lmdb"),
+                "senet": os.path.join(base_dir, var, "check_pt_senet_100m", "experiment_0", "checkpoint.pth.tar"),
+                "cbam": os.path.join(base_dir, var, "check_pt_cbam_100m", "experiment_0", "checkpoint.pth.tar"),
+                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_100m_MTL", "experiment_1", "checkpoint.pth.tar"),
+                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_100m_MTL", "experiment_1", "checkpoint.pth.tar")
             },
             "250m": {
-                "validation_dataset": os.path.join(ds_dir, "patch_data_50pt_s30_250m_valid.lmdb"),
-                "senet": os.path.join(base_dir, var, "check_pt_senet_250m", "experiment_4", "checkpoint.pth.tar"),
-                "cbam": os.path.join(base_dir, var, "check_pt_cbam_250m", "experiment_2", "checkpoint.pth.tar"),
-                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_250m_MTL", "experiment_11", "checkpoint.pth.tar"),
-                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_250m_MTL", "experiment_5", "checkpoint.pth.tar")
+                "test_dataset": os.path.join(ds_dir, "patch_data_50pt_s30_250m_test.lmdb"),
+                "senet": os.path.join(base_dir, var, "check_pt_senet_250m", "experiment_0", "checkpoint.pth.tar"),
+                "cbam": os.path.join(base_dir, var, "check_pt_cbam_250m", "experiment_0", "checkpoint.pth.tar"),
+                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_250m_MTL", "experiment_1", "checkpoint.pth.tar"),
+                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_250m_MTL", "experiment_1", "checkpoint.pth.tar")
             },
             "500m": {
-                "validation_dataset": os.path.join(ds_dir, "patch_data_50pt_s60_500m_valid.lmdb"),
-                "senet": os.path.join(base_dir, var, "check_pt_senet_500m", "experiment_4", "checkpoint.pth.tar"),
-                "cbam": os.path.join(base_dir, var, "check_pt_cbam_500m", "experiment_1", "checkpoint.pth.tar"),
-                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_500m_MTL", "experiment_11", "checkpoint.pth.tar"),
-                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_500m_MTL", "experiment_5", "checkpoint.pth.tar")
+                "test_dataset": os.path.join(ds_dir, "patch_data_50pt_s60_500m_test.lmdb"),
+                "senet": os.path.join(base_dir, var, "check_pt_senet_500m", "experiment_0", "checkpoint.pth.tar"),
+                "cbam": os.path.join(base_dir, var, "check_pt_cbam_500m", "experiment_0", "checkpoint.pth.tar"),
+                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_500m_MTL", "experiment_1", "checkpoint.pth.tar"),
+                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_500m_MTL", "experiment_1", "checkpoint.pth.tar")
             },
             "1000m": {
-                "validation_dataset": os.path.join(ds_dir, "patch_data_50pt_s120_1000m_valid.lmdb"),
-                "senet": os.path.join(base_dir, var, "check_pt_senet_1000m", "experiment_3", "checkpoint.pth.tar"),
-                "cbam": os.path.join(base_dir, var, "check_pt_cbam_1000m", "experiment_1", "checkpoint.pth.tar"),
-                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_1000m_MTL", "experiment_11", "checkpoint.pth.tar"),
-                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_1000m_MTL", "experiment_4", "checkpoint.pth.tar")
+                "test_dataset": os.path.join(ds_dir, "patch_data_50pt_s120_1000m_test.lmdb"),
+                "senet": os.path.join(base_dir, var, "check_pt_senet_1000m", "experiment_0", "checkpoint.pth.tar"),
+                "cbam": os.path.join(base_dir, var, "check_pt_cbam_1000m", "experiment_0", "checkpoint.pth.tar"),
+                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_1000m_MTL", "experiment_1", "checkpoint.pth.tar"),
+                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_1000m_MTL", "experiment_1", "checkpoint.pth.tar")
             }
         }
     elif var == "footprint":
@@ -281,39 +343,39 @@ def get_prediction_DL_batch(base_dir, ds_dir, save_dir, var="height", log_scale=
         activation = "sigmoid"
         model_dir_path = {
             "100m": {
-                "validation_dataset": os.path.join(ds_dir, "patch_data_50pt_s15_100m_valid.lmdb"),
-                "senet": os.path.join(base_dir, var, "check_pt_senet_100m", "experiment_4", "checkpoint.pth.tar"),
-                "cbam": os.path.join(base_dir, var, "check_pt_cbam_100m", "experiment_1", "checkpoint.pth.tar"),
-                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_100m_MTL", "experiment_11", "checkpoint.pth.tar"),
-                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_100m_MTL", "experiment_5", "checkpoint.pth.tar")
+                "test_dataset": os.path.join(ds_dir, "patch_data_50pt_s15_100m_test.lmdb"),
+                "senet": os.path.join(base_dir, var, "check_pt_senet_100m", "experiment_0", "checkpoint.pth.tar"),
+                "cbam": os.path.join(base_dir, var, "check_pt_cbam_100m", "experiment_0", "checkpoint.pth.tar"),
+                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_100m_MTL", "experiment_1", "checkpoint.pth.tar"),
+                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_100m_MTL", "experiment_1", "checkpoint.pth.tar")
             },
             "250m": {
-                "validation_dataset": os.path.join(ds_dir, "patch_data_50pt_s30_250m_valid.lmdb"),
-                "senet": os.path.join(base_dir, var, "check_pt_senet_250m", "experiment_3", "checkpoint.pth.tar"),
+                "test_dataset": os.path.join(ds_dir, "patch_data_50pt_s30_250m_test.lmdb"),
+                "senet": os.path.join(base_dir, var, "check_pt_senet_250m", "experiment_0", "checkpoint.pth.tar"),
                 "cbam": os.path.join(base_dir, var, "check_pt_cbam_250m", "experiment_0", "checkpoint.pth.tar"),
-                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_250m_MTL", "experiment_11", "checkpoint.pth.tar"),
-                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_250m_MTL", "experiment_5", "checkpoint.pth.tar")
+                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_250m_MTL", "experiment_1", "checkpoint.pth.tar"),
+                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_250m_MTL", "experiment_1", "checkpoint.pth.tar")
             },
             "500m": {
-                "validation_dataset": os.path.join(ds_dir, "patch_data_50pt_s60_500m_valid.lmdb"),
-                "senet": os.path.join(base_dir, var, "check_pt_senet_500m", "experiment_3", "checkpoint.pth.tar"),
-                "cbam": os.path.join(base_dir, var, "check_pt_cbam_500m", "experiment_1", "checkpoint.pth.tar"),
-                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_500m_MTL", "experiment_11", "checkpoint.pth.tar"),
-                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_500m_MTL", "experiment_5", "checkpoint.pth.tar")
+                "test_dataset": os.path.join(ds_dir, "patch_data_50pt_s60_500m_test.lmdb"),
+                "senet": os.path.join(base_dir, var, "check_pt_senet_500m", "experiment_0", "checkpoint.pth.tar"),
+                "cbam": os.path.join(base_dir, var, "check_pt_cbam_500m", "experiment_0", "checkpoint.pth.tar"),
+                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_500m_MTL", "experiment_1", "checkpoint.pth.tar"),
+                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_500m_MTL", "experiment_1", "checkpoint.pth.tar")
             },
             "1000m": {
-                "validation_dataset": os.path.join(ds_dir, "patch_data_50pt_s120_1000m_valid.lmdb"),
-                "senet": os.path.join(base_dir, var, "check_pt_senet_1000m", "experiment_5", "checkpoint.pth.tar"),
-                "cbam": os.path.join(base_dir, var, "check_pt_cbam_1000m", "experiment_2", "checkpoint.pth.tar"),
-                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_1000m_MTL", "experiment_11", "checkpoint.pth.tar"),
-                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_1000m_MTL", "experiment_4", "checkpoint.pth.tar")
+                "test_dataset": os.path.join(ds_dir, "patch_data_50pt_s120_1000m_test.lmdb"),
+                "senet": os.path.join(base_dir, var, "check_pt_senet_1000m", "experiment_0", "checkpoint.pth.tar"),
+                "cbam": os.path.join(base_dir, var, "check_pt_cbam_1000m", "experiment_0", "checkpoint.pth.tar"),
+                "senetMTL": os.path.join(base_dir, var, "check_pt_senet_1000m_MTL", "experiment_1", "checkpoint.pth.tar"),
+                "cbamMTL": os.path.join(base_dir, var, "check_pt_cbam_1000m_MTL", "experiment_1", "checkpoint.pth.tar")
             }
         }
     else:
         raise NotImplementedError("Unknown target variable")
 
     for resolution, input_size in [("100m", 15), ("250m", 30), ("500m", 60), ("1000m", 120)]:
-        val_ds_path = model_dir_path[resolution]["validation_dataset"]
+        val_ds_path = model_dir_path[resolution]["test_dataset"]
         for model in [backbone, backbone + "MTL"]:
             model_file = model_dir_path[resolution][model]
             if model == backbone:
@@ -322,6 +384,7 @@ def get_prediction_DL_batch(base_dir, ds_dir, save_dir, var="height", log_scale=
                                   model_path=model_file,
                                   input_size=input_size,
                                   save_dir=save_dir,
+                                  aux_feat_info=aux_feat_info,
                                   activation=activation, target_id_shift=target_id_shift,
                                   log_scale=log_scale, cuda_used=cuda_used,
                                   batch_size=batch_size,
@@ -332,6 +395,7 @@ def get_prediction_DL_batch(base_dir, ds_dir, save_dir, var="height", log_scale=
                                   model_path=model_file,
                                   input_size=input_size,
                                   save_dir=save_dir,
+                                  aux_feat_info=aux_feat_info,
                                   activation=None, target_id_shift=None,
                                   log_scale=log_scale, cuda_used=cuda_used,
                                   batch_size=batch_size,
@@ -346,13 +410,11 @@ def fig_2_dataset_loc_plot(csv_path, path_prefix=None, report=False):
     # ---read the center location, i.e., (lon, lat) of each city
     target_spatialRef = osr.SpatialReference()
     target_spatialRef.ImportFromEPSG(4326)
-    target_spatialRef.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
 
-    xy_center = {}
+    xy_center = []
     df = pd.read_csv(csv_path)
     for row_id in df.index:
         # ------read basic information of Shapefile
-        city_name = df.loc[row_id]["City"]
         dta_path = os.path.join(path_prefix, df.loc[row_id]["SHP_Path"])
         # ---------get Shapefile extent
         shp_ds = ogr.Open(dta_path, 0)
@@ -364,7 +426,7 @@ def fig_2_dataset_loc_plot(csv_path, path_prefix=None, report=False):
         shp_spatialRef = shp_layer.GetSpatialRef()
         coordTrans = osr.CoordinateTransformation(shp_spatialRef, target_spatialRef)
         lon, lat = coordTrans.TransformPoint(x_center, y_center)[0:2]
-        xy_center[city_name] = [lon, lat]
+        xy_center.append([lon, lat])
 
     # ---plot the center location on the world map
     projection = ccrs.PlateCarree()
@@ -374,14 +436,13 @@ def fig_2_dataset_loc_plot(csv_path, path_prefix=None, report=False):
 
     ax.stock_img()
 
-    for city_name, loc in xy_center.items():
+    for loc in xy_center:
         x, y = loc
         if report:
-            print(city_name, ", ", str(x), ",", str(y))
-        ax.plot(x, y, "or", markersize=3)
+            print(x, y)
+        ax.plot(x, y, "or", markersize=5)
 
-    k_test = list(xy_center.keys())[0]
-    ax.plot(xy_center[k_test][0], xy_center[k_test][1], "or", markersize=5, label="center of sample cities")
+    ax.plot(xy_center[0][0], xy_center[0][1], "or", markersize=5, label="center of sample cities")
     ax.set_xticks(np.linspace(-180, 180, 5), crs=projection)
     ax.set_yticks(np.linspace(-90, 90, 5), crs=projection)
     lon_formatter = LongitudeFormatter(zero_direction_label=True)
@@ -391,12 +452,104 @@ def fig_2_dataset_loc_plot(csv_path, path_prefix=None, report=False):
 
     plt.legend()
     # plt.show()
-    plt.savefig("Fig-1-location.png", dpi=500)
+    plt.savefig("report/img/Fig-1-location.png", dpi=500)
 
 
-# Fig. 1. Distributions of reference building height and building footprint under diﬀerent target resolutions
+def fig_3_dataset_scatter_plot(path_prefix=None, line_width_ratio=0.1, line_height_ratio=0.1):
+    # ---read the HDF5 dataset to get target variable
+    db_path_list = {"100m": os.path.join(path_prefix, "patch_data_50pt_s15_100m.h5"),
+                    "250m": os.path.join(path_prefix, "patch_data_50pt_s30_250m.h5"),
+                    "500m": os.path.join(path_prefix, "patch_data_50pt_s60_500m.h5"),
+                    "1000m": os.path.join(path_prefix, "patch_data_50pt_s120_1000m.h5")}
+
+    labels = ["100m", "250m", "500m", "1000m"]
+
+    city_stats = {}
+    # ------summarize sample cities
+    for res in labels:
+        hf_db = h5py.File(db_path_list[res], "r")
+        city_namelist = np.unique([c.split("@")[0] for c in hf_db.keys()]).tolist()
+        
+        city_height = {c: [] for c in city_namelist}
+        city_footprint = {c: [] for c in city_namelist}
+        # ---------store the value of building height and footprint of each city
+        for city in city_namelist:
+            city_key = [c for c in hf_db.keys() if c.startswith(city)]
+            for c in city_key:
+                city_height[city].append(np.array(hf_db[c]["BuildingHeight"]))
+                city_footprint[city].append(np.array(hf_db[c]["BuildingFootprint"]))
+            city_height[city] = np.concatenate(city_height[city], axis=0)
+            city_footprint[city] = np.concatenate(city_footprint[city], axis=0)
+
+        # ---------calculate the median, IQR of building height and footprint for each city
+        city_stats[res] = {}
+        for city in city_namelist:
+            city_stats[res][city] = {}
+            city_stats[res][city]["BuildingHeight"] = {}
+            q75, q50, q25 = np.percentile(city_height[city], [75, 50, 25])
+            city_stats[res][city]["BuildingHeight"]["median"] = q50
+            city_stats[res][city]["BuildingHeight"]["Q75"] = q75
+            city_stats[res][city]["BuildingHeight"]["Q25"] = q25
+
+            city_stats[res][city]["BuildingFootprint"] = {}
+            q75, q50, q25 = np.percentile(city_footprint[city], [75, 50, 25])
+            city_stats[res][city]["BuildingFootprint"]["median"] = q50
+            city_stats[res][city]["BuildingFootprint"]["Q75"] = q75
+            city_stats[res][city]["BuildingFootprint"]["Q25"] = q25
+
+    # ---plot scatter plot
+    fig, ax = plt.subplots(1, 4, figsize=(12, 3))
+    col_mapping = {"100m": 0, "250m": 1, "500m": 2, "1000m": 3}
+    h_min_mapping = {"100m": 0.0, "250m": 0.0, "500m": 0.0, "1000m": 0.0}
+    h_max_mapping = {"100m": 80.0, "250m": 80.0, "500m": 80.0, "1000m": 80.0}
+    f_min_mapping = {"100m": 0.0, "250m": 0.0, "500m": 0.0, "1000m": 0.0}
+    f_max_mapping = {"100m": 0.5, "250m": 0.5, "500m": 0.5, "1000m": 0.5}
+
+    for res in labels:
+        col_id = col_mapping[res]
+        for city in city_namelist:
+            x_q25 = city_stats[res][city]["BuildingFootprint"]["Q25"]
+            x_q50 = city_stats[res][city]["BuildingFootprint"]["median"]
+            x_q75 = city_stats[res][city]["BuildingFootprint"]["Q75"]
+            x_width = (x_q75 - x_q25) * line_width_ratio
+            y_q25 = city_stats[res][city]["BuildingHeight"]["Q25"]
+            y_q50 = city_stats[res][city]["BuildingHeight"]["median"]
+            y_q75 = city_stats[res][city]["BuildingHeight"]["Q75"]
+            y_height = (y_q75 - y_q25) * line_height_ratio
+
+            # ---------plot the boundary line
+            ax[col_id].add_line(Line2D(xdata=[x_q25, x_q75], ydata=[y_q50, y_q50], color='slategray', linewidth=0.5))
+            ax[col_id].add_line(Line2D(xdata=[x_q50, x_q50], ydata=[y_q25, y_q75], color='slategray', linewidth=0.5))
+
+            ax[col_id].add_line(Line2D(xdata=[x_q50 - 0.5 * x_width, x_q50 + 0.5 * x_width], ydata=[y_q25, y_q25], color='slategray', linewidth=0.5))
+            ax[col_id].add_line(Line2D(xdata=[x_q50 - 0.5 * x_width, x_q50 + 0.5 * x_width], ydata=[y_q75, y_q75], color='slategray', linewidth=0.5))
+            
+            ax[col_id].add_line(Line2D(xdata=[x_q25, x_q25], ydata=[y_q50 - 0.5 * y_height, y_q50 + 0.5 * y_height], color='slategray', linewidth=0.5))
+            ax[col_id].add_line(Line2D(xdata=[x_q75, x_q75], ydata=[y_q50 - 0.5 * y_height, y_q50 + 0.5 * y_height], color='slategray', linewidth=0.5))
+
+            # ---------plot the central point by median value
+            ax[col_id].plot([x_q50], [y_q50], color='navy', marker='s', markersize=1)
+
+        ax[col_id].set_xlim([f_min_mapping[res], f_max_mapping[res]])
+        # ax[col_id].set_xscale('log')
+        ax[col_id].set_xlabel("$\lambda_p$ $[\mathrm{m}^2/\mathrm{m}^2]$", size="large")
+        
+        ax[col_id].set_ylim([h_min_mapping[res], h_max_mapping[res]])
+        # ax[col_id].set_yscale('log')
+        if col_id == 0:
+            ax[col_id].set_ylabel("$H_{\mathrm{ave}}$ [m]", size="large")
+        else:
+            ax[col_id].tick_params(axis="y", which="both", left=False, labelleft=False)
+
+        ax[col_id].set_title(res, size="large")
+
+    # plt.show()
+    plt.savefig("Fig-3-distribution-scatter.pdf", bbox_inches='tight', dpi=600)
+
+
+# Fig. 3. Distribution of reference building height and building footprint in different resolution
 # i.e., 100m, 250m, 500m, 1000m
-def fig_1_dataset_distribution_plot(plot_type="violin", path_prefix=None):
+def fig_3_dataset_distribution_plot(plot_type="violin", path_prefix=None):
     # ---read the HDF5 dataset to get target variable
     db_path_list = {"100m": os.path.join(path_prefix, "patch_data_50pt_s15_100m.h5"),
                     "250m": os.path.join(path_prefix, "patch_data_50pt_s30_250m.h5"),
@@ -418,33 +571,33 @@ def fig_1_dataset_distribution_plot(plot_type="violin", path_prefix=None):
         target_footprint.append(tmp_footprint)
 
     # ---plot violin plot
-    fig, ax = plt.subplots(1, 2, figsize=(10, 4))
+    fig, ax = plt.subplots(1, 2, figsize=(11, 4))
 
     if plot_type == "violin":
         sns.violinplot(data=target_height, ax=ax[0], cut=0, gridsize=100)
         sns.violinplot(data=target_footprint, ax=ax[1], cut=0, gridsize=100)
     elif plot_type == "box":
-        sns.boxplot(data=target_height, ax=ax[0], fliersize=0.5)
-        sns.boxplot(data=target_footprint, ax=ax[1], fliersize=0.5)
+        sns.boxplot(data=target_height, ax=ax[0], fliersize=0.2)
+        sns.boxplot(data=target_footprint, ax=ax[1], fliersize=0.1)
     else:
         raise NotImplementedError("Unknown plot type")
 
     ax[0].get_xaxis().set_tick_params(direction='out')
     ax[0].xaxis.set_ticks_position('bottom')
     ax[0].set_xticks(np.arange(0, len(labels)))
-    ax[0].set_xticklabels(labels)
+    ax[0].set_xticklabels(labels, size="medium")
     ax[0].set_yscale('log')
-    ax[0].set_ylabel("$H_{\mathrm{ave}}$ [m]")
+    ax[0].set_ylabel("$H_{\mathrm{ave}}$ [m]", size="large")
 
     ax[1].get_xaxis().set_tick_params(direction='out')
     ax[1].xaxis.set_ticks_position('bottom')
     ax[1].set_xticks(np.arange(0, len(labels)))
-    ax[1].set_xticklabels(labels)
+    ax[1].set_xticklabels(labels, size="medium")
     ax[1].set_yscale('log')
-    ax[1].set_ylabel("$\lambda_p$ $[\mathrm{m}^2/\mathrm{m}^2]$")
+    ax[1].set_ylabel("$\lambda_p$ $[\mathrm{m}^2/\mathrm{m}^2]$", size="large")
 
     # plt.show()
-    plt.savefig("Fig-1-distribution.pdf", bbox_inches='tight', dpi=600)
+    plt.savefig("Fig-3-distribution.pdf", bbox_inches='tight', dpi=600)
 
 
 # Fig. 4. Performance of models at different resolution (plot pred-ref corr curve, scatter plot with density)
@@ -585,7 +738,7 @@ def fig_4_model_metric_corr(res_prefix, var="height"):
                     ax[row_id, col_id].tick_params(axis="y", which="both", left=False, labelleft=False)
 
                 if row_id == 3 and col_id == 2:
-                    position = ax[row_id, col_id].inset_axes([-0.7, -0.3, 2.40, 0.04], transform=ax[row_id, col_id].transAxes)
+                    position = ax[row_id, col_id].inset_axes([-0.7, -0.33, 2.40, 0.04], transform=ax[row_id, col_id].transAxes)
                     cbar = fig.colorbar(s, ax=ax[row_id, col_id], cax=position, orientation="horizontal")
 
                 # ------add metric text
@@ -599,6 +752,62 @@ def fig_4_model_metric_corr(res_prefix, var="height"):
     report_df.to_csv("Fig-4-metrics_{0}.csv".format(var), index=False)
 
     plt.savefig("Fig-4-metrics_corr_{0}.pdf".format(var), bbox_inches='tight', dpi=600)
+
+
+def get_city_performance(base_dir, var="height"):
+    city_list = os.listdir(base_dir)
+
+    performance_records = {}
+
+    for city in city_list:
+        performance_records[city] = {}
+        for resolution in ["100m", "250m", "500m", "1000m"]:
+            ref_dl_path = os.path.join(base_dir, city, var, "{0}_{1}_refDL.npy".format(var, resolution))
+            var_ref_dl = np.load(ref_dl_path)
+            ref_ml_path = os.path.join(base_dir, city, var, "{0}_{1}_ref.npy".format(var, resolution))
+            var_ref_ml = np.load(ref_ml_path)
+            performance_records[city][resolution] = {}
+            for model in ["rf", "xgb", "baggingSVR", "SVR", "senet", "senetMTL"]:
+                val_model_path = os.path.join(base_dir, city, var, "{0}_{1}_{2}.npy".format(model, var, resolution))
+                if os.path.exists(val_model_path):
+                    # ------rename `baggingSVR` as `SVR` in the performance statstics
+                    if model == "baggingSVR" or model == "SVR":
+                        model = "(bagging)SVR"
+                        
+                    performance_records[city][resolution][model] = {}
+                    var_pred = np.load(val_model_path)
+                    if model in ["senet", "senetMTL"]:
+                        var_ref = var_ref_dl
+                    else:
+                        var_ref = var_ref_ml
+                    # ------calculate some metrics: RMSE, ME, NMAD, CORR, R^2
+                    err = var_pred - var_ref
+
+                    num_sample = len(var_ref)
+                    rmse = np.sqrt(metrics.mean_squared_error(y_true=var_ref, y_pred=var_pred))
+                    r2 = metrics.r2_score(y_true=var_ref, y_pred=var_pred)
+                    se = np.mean(err)
+                    nmad = get_NMAD(err)
+                    cc = np.corrcoef(x=var_ref, y=var_pred)[0, 1]
+
+                    ref_std = np.std(var_ref, ddof=1)
+                    ref_mean = np.mean(var_ref)
+                    pred_mean = np.mean(var_pred)
+                    se_nsq = (se / ref_std) ** 2
+                    mse_centered = np.mean((err - pred_mean + ref_mean)**2)
+                    mse_centered_nsq = mse_centered / ref_std**2
+
+                    performance_records[city][resolution][model]["N"] = num_sample
+                    performance_records[city][resolution][model]["RMSE"] = rmse
+                    performance_records[city][resolution][model]["ME"] = se
+                    performance_records[city][resolution][model]["nME^2"] = se_nsq
+                    performance_records[city][resolution][model]["nRMSE_centered^2"] = mse_centered_nsq
+                    performance_records[city][resolution][model]["NMAD"] = nmad
+                    performance_records[city][resolution][model]["CORR"] = cc
+                    performance_records[city][resolution][model]["R^2"] = r2
+    
+    with open(var+".json", 'w') as json_file:
+        json.dump(performance_records, json_file, indent=6)
 
 
 def fig_4_model_metric_hist_2x4(res_prefix, num_bin=1000, log_scale=True):
@@ -670,7 +879,7 @@ def fig_4_model_metric_hist_2x4(res_prefix, num_bin=1000, log_scale=True):
         "footprint": {"100m": 0.02, "250m": 0.02, "500m": 0.02, "1000m": 0.02}
     }
 
-    fig, ax = plt.subplots(nrows=2, ncols=4, figsize=(8, 4))
+    fig, ax = plt.subplots(nrows=2, ncols=4, figsize=(8, 3.7))
     for var in ["height", "footprint"]:
         row_id = row_mapping[var]
         res_name = row_label_mapping[row_id]
@@ -722,13 +931,13 @@ def fig_4_model_metric_hist_2x4(res_prefix, num_bin=1000, log_scale=True):
             else:
                 ax[row_id, col_id].tick_params(axis="y", which="both", left=False, labelleft=False)
 
-            if row_id == 1 and col_id == 0:
+            if row_id == 1 and col_id == 1:
                 legend_list = [Patch(facecolor=palette_pdf["Reference"], edgecolor=palette_pdf["Reference"],
                                      label="Reference")]
                 for model in ["rf", "xgb", "SVR", "senet", "senetMTL"]:
                     legend_list.append(Line2D([], [], color=palette_model[name_mapping[model]], label=name_mapping[model]))
 
-                ax[row_id, col_id].legend(handles=legend_list, bbox_to_anchor=[5.15, -0.5], fontsize='medium',
+                ax[row_id, col_id].legend(handles=legend_list, bbox_to_anchor=[4.0, -0.5], fontsize='medium',
                                           loc='lower right', ncol=6)
 
             ax[row_id, col_id].set_xlim([vmin_mapping[var][resolution], vmax_mapping[var][resolution]])
@@ -1029,7 +1238,6 @@ def fig_4_metric_scale(res_prefix):
         for resolution in ["100m", "250m", "500m", "1000m"]:
             for model in ["RFR", "XGBoostR", "(bagging)SVR", "SENet-STL", "SENet-MTL"]:
             #for model in ["RFR", "XGBoostR", "(bagging)SVR", "CBAM-STL", "CBAM-MTL"]:
-                #print(resolution, model, metric_summary[var][resolution][model]["std"] / metric_summary[var][resolution]["ref"]["std"])
                 dia.add_sample(stddev=metric_summary[var][resolution][model]["std"] / metric_summary[var][resolution]["ref"]["std"],
                                corrcoef=metric_summary[var][resolution][model]["R"],
                                ms=4, ls="", markeredgewidth=0.5, marker=model_style_dict[resolution][model]["symbol"],
@@ -1054,38 +1262,38 @@ def fig_4_curve_STL_MTL(record_prefix):
     record_path = {
         "height": {
             "100m": {
-                "STL": os.path.join(record_prefix, "height", "check_pt_{0}_100m".format(backbone), "experiment_5", "out_{0}.txt".format(backbone)),
-                "MTL": os.path.join(record_prefix, "height", "check_pt_{0}_100m_MTL".format(backbone), "experiment_11", "out_{0}_MTL.txt".format(backbone)),
+                "STL": os.path.join(record_prefix, "height", "check_pt_{0}_100m".format(backbone), "experiment_2", "out_{0}.txt".format(backbone)),
+                "MTL": os.path.join(record_prefix, "height", "check_pt_{0}_100m_MTL".format(backbone), "experiment_5", "out_{0}_MTL.txt".format(backbone)),
             },
             "250m": {
-                "STL": os.path.join(record_prefix, "height", "check_pt_{0}_250m".format(backbone), "experiment_5", "out_{0}.txt".format(backbone)),
-                "MTL": os.path.join(record_prefix, "height", "check_pt_{0}_250m_MTL".format(backbone), "experiment_11", "out_{0}_MTL.txt".format(backbone)),
+                "STL": os.path.join(record_prefix, "height", "check_pt_{0}_250m".format(backbone), "experiment_2", "out_{0}.txt".format(backbone)),
+                "MTL": os.path.join(record_prefix, "height", "check_pt_{0}_250m_MTL".format(backbone), "experiment_5", "out_{0}_MTL.txt".format(backbone)),
             },
             "500m": {
-                "STL": os.path.join(record_prefix, "height", "check_pt_{0}_500m".format(backbone), "experiment_5", "out_{0}.txt".format(backbone)),
-                "MTL": os.path.join(record_prefix, "height", "check_pt_{0}_500m_MTL".format(backbone), "experiment_11", "out_{0}_MTL.txt".format(backbone)),
+                "STL": os.path.join(record_prefix, "height", "check_pt_{0}_500m".format(backbone), "experiment_2", "out_{0}.txt".format(backbone)),
+                "MTL": os.path.join(record_prefix, "height", "check_pt_{0}_500m_MTL".format(backbone), "experiment_5", "out_{0}_MTL.txt".format(backbone)),
             },
             "1000m": {
-                "STL": os.path.join(record_prefix, "height", "check_pt_{0}_1000m".format(backbone), "experiment_5", "out_{0}.txt".format(backbone)),
-                "MTL": os.path.join(record_prefix, "height", "check_pt_{0}_1000m_MTL".format(backbone), "experiment_11", "out_{0}_MTL.txt".format(backbone)),
+                "STL": os.path.join(record_prefix, "height", "check_pt_{0}_1000m".format(backbone), "experiment_2", "out_{0}.txt".format(backbone)),
+                "MTL": os.path.join(record_prefix, "height", "check_pt_{0}_1000m_MTL".format(backbone), "experiment_5", "out_{0}_MTL.txt".format(backbone)),
             }
         },
         "footprint": {
             "100m": {
-                "STL": os.path.join(record_prefix, "footprint", "check_pt_{0}_100m".format(backbone), "experiment_5", "out_{0}.txt".format(backbone)),
-                "MTL": os.path.join(record_prefix, "footprint", "check_pt_{0}_100m_MTL".format(backbone), "experiment_11", "out_{0}_MTL.txt".format(backbone)),
+                "STL": os.path.join(record_prefix, "footprint", "check_pt_{0}_100m".format(backbone), "experiment_2", "out_{0}.txt".format(backbone)),
+                "MTL": os.path.join(record_prefix, "footprint", "check_pt_{0}_100m_MTL".format(backbone), "experiment_5", "out_{0}_MTL.txt".format(backbone)),
             },
             "250m": {
-                "STL": os.path.join(record_prefix, "footprint", "check_pt_{0}_250m".format(backbone), "experiment_5", "out_{0}.txt".format(backbone)),
-                "MTL": os.path.join(record_prefix, "footprint", "check_pt_{0}_250m_MTL".format(backbone), "experiment_11", "out_{0}_MTL.txt".format(backbone)),
+                "STL": os.path.join(record_prefix, "footprint", "check_pt_{0}_250m".format(backbone), "experiment_2", "out_{0}.txt".format(backbone)),
+                "MTL": os.path.join(record_prefix, "footprint", "check_pt_{0}_250m_MTL".format(backbone), "experiment_5", "out_{0}_MTL.txt".format(backbone)),
             },
             "500m": {
-                "STL": os.path.join(record_prefix, "footprint", "check_pt_{0}_500m".format(backbone), "experiment_5", "out_{0}.txt".format(backbone)),
-                "MTL": os.path.join(record_prefix, "footprint", "check_pt_{0}_500m_MTL".format(backbone), "experiment_11", "out_{0}_MTL.txt".format(backbone)),
+                "STL": os.path.join(record_prefix, "footprint", "check_pt_{0}_500m".format(backbone), "experiment_2", "out_{0}.txt".format(backbone)),
+                "MTL": os.path.join(record_prefix, "footprint", "check_pt_{0}_500m_MTL".format(backbone), "experiment_5", "out_{0}_MTL.txt".format(backbone)),
             },
             "1000m": {
-                "STL": os.path.join(record_prefix, "footprint", "check_pt_{0}_1000m".format(backbone), "experiment_5", "out_{0}.txt".format(backbone)),
-                "MTL": os.path.join(record_prefix, "footprint", "check_pt_{0}_1000m_MTL".format(backbone), "experiment_11", "out_{0}_MTL.txt".format(backbone)),
+                "STL": os.path.join(record_prefix, "footprint", "check_pt_{0}_1000m".format(backbone), "experiment_2", "out_{0}.txt".format(backbone)),
+                "MTL": os.path.join(record_prefix, "footprint", "check_pt_{0}_1000m_MTL".format(backbone), "experiment_5", "out_{0}_MTL.txt".format(backbone)),
             }
         }
     }
@@ -1119,8 +1327,6 @@ def fig_4_curve_STL_MTL(record_prefix):
             l2, = ax[row_id, col_id].plot(epoch[0:num_epoch], r2_mtl_training[0:num_epoch], label="MTL, training", color="indianred", linestyle="dashed")
             l3, = ax[row_id, col_id].plot(epoch[0:num_epoch], r2_stl_test[0:num_epoch], label="STL, validation", color="navy")
             l4, = ax[row_id, col_id].plot(epoch[0:num_epoch], r2_mtl_test[0:num_epoch], label="MTL, validation", color="firebrick")
-
-            ax[row_id, col_id].set_ylim(0.0, 1.0)
 
             if row_id == 0:
                 ax[row_id, col_id].set_title("{0}".format(col_label_mapping[col_id]), size="large")
@@ -1199,24 +1405,24 @@ def fig_5_model_close_up(var="height"):
     }
 
     if var == "height":
-        ref_label = "$H_{\mathrm{ave}}$ [m]"
+        ref_label = "$H_{\mathrm{ave}}$"
         var_limit = {
             "Glasgow": [0.0, 30.0],
-            "Beijing": [0.0, 60.0],
+            "Beijing": [0.0, 50.0],
             #"LosAngeles": [0.0, 50.0],
             "Chicago": [0.0, 60.0]
         }
-        y_label = [1.16, 1.15, 1.08]
-        pad_label = [-20, -20, -20]
+        y_label = [1.2, 1.15, 1.09]
+        pad_label = [-15, -15, -15]
     elif var == "footprint":
-        ref_label = "$\lambda_p$ [$\mathrm{m}^2$/$\mathrm{m}^2$]"
+        ref_label = "$\lambda_p$"
         var_limit = {
             "Glasgow": [0.0, 0.5],
             "Beijing": [0.0, 0.5],
             #"LosAngeles": [0.0, 0.5],
             "Chicago": [0.0, 0.5]
         }
-        y_label = [1.17, 1.18, 1.08]
+        y_label = [1.16, 1.15, 1.09]
         pad_label = [-20, -20, -20]
     else:
         raise NotImplementedError("Unknown target variable")
@@ -1282,8 +1488,7 @@ def fig_5_model_close_up(var="height"):
                 if res_id == n_model - 1:
                     position = ax[city_id, res_id].inset_axes([1.05, 0.02, 0.03, 0.96], transform=ax[city_id, res_id].transAxes)
                     cbar = fig.colorbar(im, ax=ax[city_id, res_id], cax=position)
-                    cbar.ax.set_ylabel(ref_label, rotation=0,
-                                       y=y_label[city_id], labelpad=pad_label[city_id], fontsize="small")
+                    cbar.ax.set_ylabel(ref_label, rotation=0, y=y_label[city_id], labelpad=pad_label[city_id])
 
                 if city_id == n_city - 1:
                     labels_loc = [-87.70, -87.60]
@@ -1300,7 +1505,7 @@ def fig_5_model_close_up(var="height"):
         a.set_ylabel(row, size='large', rotation=90)
 
     # plt.show()
-    plt.savefig("Fig-5-close_ups_{0}.pdf".format(var), bbox_inches='tight', dpi=1000)
+    plt.savefig("Fig-5-close_ups_{0}.pdf".format(var), bbox_inches='tight', dpi=600)
 
 
 # Fig. 6. Compare the building height results in Glasgow from different models
@@ -1526,7 +1731,7 @@ def fig_6_Glasgow_compare(ref_prefix, res_prefix, var="height"):
 
     report_df.to_csv("Fig-6-Glasgow-{0}.csv".format(var), index=False)
 
-    plt.savefig("Fig-6-Glasgow-box_{0}.pdf".format(var), bbox_inches='tight', dpi=1000)
+    plt.savefig("Fig-6-Glasgow-box_{0}.pdf".format(var), bbox_inches='tight', dpi=600)
 
 
 # Fig. 6. Compare the building height results in Los Angeles from different models
@@ -1701,7 +1906,7 @@ def fig_6_LosAngeles_compare(ref_prefix, res_prefix, var="height"):
 
     report_df.to_csv("Fig-6-LosAngeles-{0}.csv".format(var), index=False)
     # plt.show()
-    plt.savefig("Fig-6-LosAngeles-box_{0}.png".format(var), dpi=1000)
+    plt.savefig("Fig-6-LosAngeles-box_{0}.png".format(var), dpi=800)
 
 
 # Fig. 7. Compare the building height results in Glasgow at the resolution of 1km with Li's result
@@ -1833,7 +2038,7 @@ def fig_7_Glasgow_compareLi(ref_prefix, res_prefix):
         ax[i].set_yscale("log")
 
     # plt.show()
-    plt.savefig("Fig-7-Glasgow-1km_comparison.png", dpi=1000)
+    plt.savefig("Fig-7-Glasgow-1km_comparison.png", dpi=800)
 
 
 # Fig. 8. Compare the aerodynamic parameters derived from different sources
@@ -1855,15 +2060,15 @@ def fig_8_Glasgow_aero_compareLi(ref_prefix, res_prefix):
         }
     }
 
-    fig, ax = plt.subplots(nrows=2, ncols=4, figsize=(16, 4.5))
+    fig, ax = plt.subplots(nrows=2, ncols=4, figsize=(16, 4))
     range_mapping = {"zd": {"v_min": 0.0, "v_max": 15.0},
                      "z0": {"v_min": 0.0, "v_max": 3.0}}
     row_mapping = {"zd": 0, "z0": 1}
-    pad_mapping = {"zd": -25, "z0": -20}
+    pad_mapping = {"zd": -20, "z0": -15}
     col_mapping = {"reference": 0, backbone: 1, backbone + "MTL": 2, "L20": 3}
 
     res_dta = {"zd": {}, "z0": {}}
-    var_name_mapping = {"zd": "$z_d$ [m]", "z0": "$z_0$ [m]"}
+    var_name_mapping = {"zd": "$z_d$", "z0": "$z_0$"}
 
     for model in ["reference", backbone, backbone + "MTL", "L20"]:
         col_id = col_mapping[model]
@@ -1955,20 +2160,23 @@ def fig_8_Glasgow_aero_compareLi(ref_prefix, res_prefix):
         a.set_ylabel(row, size='large', rotation=90)
 
     # plt.show()
-    plt.savefig("Fig-8-aero_compare.pdf", bbox_inches='tight', dpi=1000)
+    plt.savefig("Fig-8-aero_compare.pdf", bbox_inches='tight', dpi=600)
 
 
 if __name__ == "__main__":
-    # get_prediction_DL_batch(base_dir="DL_run", ds_dir="/data/lyy/BuildingProject/dataset", save_dir="records", var="height", log_scale=False)
-    # get_prediction_DL_batch(base_dir="DL_run", ds_dir="/data/lyy/BuildingProject/dataset", save_dir="records", var="footprint", log_scale=False)
-    # get_prediction_ML(base_dir="ML_run", feature_dir="dataset", save_dir="records", var="footprint", log_scale=True)
-    
-    fig_2_dataset_loc_plot(csv_path="utils/HeightGen.csv",
-                           path_prefix="/Volumes/ForLyy/Temp/ReferenceData", report=True)
+    #get_prediction_DL_batch(base_dir="DL_run", ds_dir="/data/lyy/BuildingProject/dataset", save_dir="records", var="height", log_scale=False)
+    #get_prediction_DL_batch(base_dir="DL_run", ds_dir="/data/lyy/BuildingProject/dataset", save_dir="records", var="footprint", log_scale=False)
+    #get_prediction_ML(base_dir="ML_run", feature_dir="dataset", save_dir="records", var="footprint", log_scale=True)
+    #get_prediction_ML(base_dir="ML_run", feature_dir="dataset", save_dir="records", var="height", log_scale=True)
     '''
+    fig_2_dataset_loc_plot(csv_path="utils/HeightGen_2021.csv",
+                           path_prefix="/Users/lyy/Downloads/ReferenceData")
     '''
-    #fig_1_dataset_distribution_plot(plot_type="box", path_prefix="/data/lyy/BuildingProject/dataset")
+    # fig_3_dataset_scatter_plot(path_prefix="/data/lyy/BuildingProject/dataset")
+    #fig_3_dataset_distribution_plot(plot_type="box", path_prefix="/data/lyy/BuildingProject/dataset")
     #fig_4_model_metric_corr(res_prefix="records", var="height")
+    get_city_performance(base_dir="records/cities", var="height")
+    get_city_performance(base_dir="records/cities", var="footprint")
     #fig_4_curve_STL_MTL(record_prefix="DL_run")
     #fig_4_model_metric_hist_2x4(res_prefix="records", num_bin=200, log_scale=True)
     #fig_4_r2_partition(res_prefix="records")

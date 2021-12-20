@@ -212,10 +212,6 @@ def GetPatchFromTiffArray(tiff_array, tiff_geoTransform, x, y, patch_size, paddi
         y_end = int(y_id + s/2 + 1)
         w = int((max(patch_size)-s) / 2)
         ar_n = np.arange(num_band)
-        tmp_res = np.pad(tiff_array[ar_n, y_start:y_end, x_start:x_end], pad_width=((0, 0), (w, w), (w, w)), mode='constant', constant_values=padding_val)
-
-        if 119 in [s for s in tmp_res.shape]:
-            print("cat")
 
         patch[i * num_band + ar_n] = np.pad(tiff_array[ar_n, y_start:y_end, x_start:x_end], pad_width=((0, 0), (w, w), (w, w)), mode='constant', constant_values=padding_val)
 
@@ -554,8 +550,9 @@ def GetPatchFromCSV(csv_path, satellite_data_dir, save_path, target_height_col, 
 
 
 if __name__ == "__main__":
+    
     path_prefix = "/data/lyy/BuildingProject"
-
+    '''
     ref_data_dir_prefix = os.path.join(path_prefix, "ReferenceData/Summary")
     rs_data_dir_prefix = path_prefix
     rs_data_dir = os.path.join(rs_data_dir_prefix, "raw_data")
@@ -603,12 +600,12 @@ if __name__ == "__main__":
 
         shutil.move("patch_data_50pt_s{0}_{1}m_valid_train.h5".format(s, rs_res), "patch_data_50pt_s{0}_{1}m_valid.h5".format(s, rs_res))
         shutil.move("patch_data_50pt_s{0}_{1}m_valid_valid.h5".format(s, rs_res), "patch_data_50pt_s{0}_{1}m_test.h5".format(s, rs_res))
-
-    '''    
+    '''
+      
     # -----calculate the number of samples in each dataset
     ref_data_dir_prefix = os.path.join(path_prefix, "ReferenceData/Summary")
     rs_data_dir_prefix = path_prefix
-    rs_data_dir = os.path.join(rs_data_dir_prefix, "raw_data")
+    rs_data_dir = os.path.join(rs_data_dir_prefix, "dataset")
 
     res_scale_mapping = {100: 15, 250: 30, 500: 60, 1000: 120}
 
@@ -617,6 +614,7 @@ if __name__ == "__main__":
         h5_path = os.path.join(rs_data_dir, "patch_data_50pt_s%d_%dm.h5" % (scale[0], rs_res))
         dataset_num_summary(src_dataset_path=h5_path)
     '''
+    '''  
 
     '''
     rs_data_dir = os.path.join(rs_data_dir_prefix, "dataset")

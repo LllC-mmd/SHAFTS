@@ -1,6 +1,5 @@
 import os
 import torch
-import shaft
 from shaft.inference import pred_height_from_tiff_DL_patch, pred_height_from_tiff_DL_patch_MTL
 
 
@@ -54,8 +53,8 @@ if __name__ == "__main__":
             },
             "raw_data": {
                 "50pt": {
-                    s1_key: os.path.join(case_prefix, "infer_test_Beijing", "raw_data", "BeijingC6_2020_sentinel_1_50pt.tif"),
-                    s2_key: os.path.join(case_prefix, "infer_test_Beijing", "raw_data", "BeijingC6_2020_sentinel_2_50pt.tif"),
+                    s1_key: os.path.join(case_prefix, "infer_test_Beijing", "raw_data", "Beijing_2020_sentinel_1.tif"),
+                    s2_key: os.path.join(case_prefix, "infer_test_Beijing", "raw_data", "Beijing_2020_sentinel_2.tif"),
                 }
             },
             "aux_feat": {
@@ -67,14 +66,14 @@ if __name__ == "__main__":
             "output_prefix": "Beijing",
         },
         # ------case of Chicago
-        "Beijing": {
+        "Chicago": {
             "extent": {
                 1000: [-87.740, 41.733, -87.545, 41.996]
             },
             "raw_data": {
                 "50pt": {
-                    s1_key: os.path.join(case_prefix, "infer_test_Chicago", "raw_data", "Chicago_2018_sentinel_1_50pt.tif"),
-                    s2_key: os.path.join(case_prefix, "infer_test_Chicago", "raw_data", "Chicago_2018_sentinel_2_50pt.tif"),
+                    s1_key: os.path.join(case_prefix, "infer_test_Chicago", "raw_data", "Chicago_2018_sentinel_1.tif"),
+                    s2_key: os.path.join(case_prefix, "infer_test_Chicago", "raw_data", "Chicago_2018_sentinel_2.tif"),
                 }
             },
             "aux_feat": {
@@ -110,7 +109,7 @@ if __name__ == "__main__":
     }
 
     # ---specify the information of pretrained models
-    pt_prefix = "dl-models"
+    pt_prefix = "DL_run"
     backbone = "senet"
     model = "SEResNet18"
 
@@ -132,7 +131,7 @@ if __name__ == "__main__":
 
     input_size = {100: [15], 250: [30], 500: [60], 1000: [120]}
     res = {100: 0.0009, 250: 0.00225, 500: 0.0045, 1000: 0.009}
-    padding = 0.0005
+    padding = 0.03
     tmp_dir = "tmp"
     cuda_used = torch.cuda.is_available()
     batch_size = 64
@@ -141,18 +140,18 @@ if __name__ == "__main__":
         input_ref = case_loc[loc]["raw_data"]
         aux_feat_info = case_loc[loc]["aux_feat"]
 
-        for target_res, extent in case_loc[loc]["extent"]:
-            input_size = input_size[target_res]
+        for target_res, extent in case_loc[loc]["extent"].items():
+            patch_size = input_size[target_res]
             output_res = res[target_res]
 
             # ------do inference by STL models
             for target_var in ["height", "footprint"]:
-                pt_path = os.path.join(pt_prefix, target_var, trained_record["stl"][target_res])
-                output_dir = os.path.join("./infer_test_{0}".format(loc), str(target_res) + "m")
-                output_file = "_".join(case_loc[loc]["output_prefix"], target_var, backbone) + ".tif"
+                pt_path = os.path.join(pt_prefix, target_var, trained_record["STL"][target_res])
+                output_dir = os.path.join(case_prefix, "infer_test_{0}".format(loc), str(target_res) + "m")
+                output_file = "_".join([case_loc[loc]["output_prefix"], target_var, backbone]) + ".tif"
                 output_path = os.path.join(output_dir, output_file)
 
-                pred_height_from_tiff_DL_patch(extent=extent, out_file=output_path, tif_ref=input_ref, patch_size=input_size,
+                pred_height_from_tiff_DL_patch(extent=extent, out_file=output_path, tif_ref=input_ref, patch_size=patch_size,
                                                 predictor=model, trained_record=pt_path, resolution=output_res,
                                                 s1_key=s1_key, s2_key=s2_key,
                                                 aux_feat_info=aux_feat_info, base_dir=tmp_dir, padding=padding, 
@@ -161,15 +160,15 @@ if __name__ == "__main__":
                                                 v_min=var_ref[target_var]["min"], v_max=var_ref[target_var]["max"])
 
             # ------do inference by MTL models
-            pt_path = os.path.join(pt_prefix, "height", trained_record["mtl"][target_res])
-            output_dir = os.path.join("./infer_test_{0}".format(loc), str(target_res) + "m")
-            output_footprint_file = "_".join(case_loc[loc]["output_prefix"], "footprint", backbone + "_MTL") + ".tif"
+            pt_path = os.path.join(pt_prefix, "height", trained_record["MTL"][target_res])
+            output_dir = os.path.join(case_prefix, "infer_test_{0}".format(loc), str(target_res) + "m")
+            output_footprint_file = "_".join([case_loc[loc]["output_prefix"], "footprint", backbone + "_MTL"]) + ".tif"
             output_footprint_path = os.path.join(output_dir, output_footprint_file)
-            output_height_file = "_".join(case_loc[loc]["output_prefix"], "height", backbone + "_MTL") + ".tif"
+            output_height_file = "_".join([case_loc[loc]["output_prefix"], "height", backbone + "_MTL"]) + ".tif"
             output_height_path = os.path.join(output_dir, output_height_file)
 
-            pred_height_from_tiff_DL_patch_MTL(extent=extent, output_footprint_file=output_footprint_path, out_height_file=output_height_path, 
-                                                tif_ref=input_ref, patch_size=input_size,
+            pred_height_from_tiff_DL_patch_MTL(extent=extent, out_footprint_file=output_footprint_path, out_height_file=output_height_path, 
+                                                tif_ref=input_ref, patch_size=patch_size,
                                                 predictor=model, trained_record=pt_path, resolution=output_res,
                                                 s1_key=s1_key, s2_key=s2_key,
                                                 aux_feat_info=aux_feat_info, crossed=False, base_dir=tmp_dir, padding=padding, 

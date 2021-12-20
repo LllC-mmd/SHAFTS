@@ -172,7 +172,7 @@ def dumps_pyarrow(obj):
 
 
 class PatchDatasetFromLMDB(Dataset):
-    def __init__(self, lmdb_dataset_path, aggregation_list, num_band=6, scale=0.0001, cached=True, mode="train", target_id_shift=1, log_scale=False, aux_namelist=None):
+    def __init__(self, lmdb_dataset_path, aggregation_list, num_band=6, scale=0.0001, cached=True, mode="train", target_id_shift=1, log_scale=False, aux_namelist=None, aux_id_shift=1):
         self.db_path = lmdb_dataset_path
         self.num_aggregation = len(aggregation_list)
         self.num_band = num_band
@@ -189,10 +189,11 @@ class PatchDatasetFromLMDB(Dataset):
         self.band_id_ref = {"S1_VV": 0, "S1_VH": 1, "S2_R": 2, "S2_G": 3, "S2_B": 4, "S2_NIR": 5}
 
         self.aux_id_ref = None
+        self.target_id_shift = int(self.target_id_shift + aux_id_shift)
         if aux_namelist is not None:
             self.aux_namelist = sorted(aux_namelist)
             self.aux_id_ref = {self.aux_namelist[i]: int(i+1) for i in range(0, len(self.aux_namelist))}
-            self.target_id_shift = int(self.target_id_shift + len(self.aux_namelist))
+            self.target_id_shift = int(self.target_id_shift - aux_id_shift + len(self.aux_namelist))
 
         self.cached = cached
         self.db = {}
@@ -289,7 +290,7 @@ class PatchDatasetFromLMDB(Dataset):
 
 class PatchDatasetFromLMDB_MTL(Dataset):
     def __init__(self, lmdb_dataset_path, aggregation_list, num_band=6, scale=0.0001, cached=True, mode="train",
-                 footprint_id_shift=1, height_id_shift=2, log_scale=False, aux_namelist=None):
+                 footprint_id_shift=1, height_id_shift=2, log_scale=False, aux_namelist=None, aux_id_shift=1):
         self.db_path = lmdb_dataset_path
         self.num_aggregation = len(aggregation_list)
         self.num_band = num_band
@@ -307,11 +308,13 @@ class PatchDatasetFromLMDB_MTL(Dataset):
         self.band_id_ref = {"S1_VV": 0, "S1_VH": 1, "S2_R": 2, "S2_G": 3, "S2_B": 4, "S2_NIR": 5}
 
         self.aux_id_ref = None
+        self.footprint_id_shift = int(self.footprint_id_shift + aux_id_shift)
+        self.height_id_shift = int(self.height_id_shift + aux_id_shift)
         if aux_namelist is not None:
             self.aux_namelist = sorted(aux_namelist)
             self.aux_id_ref = {self.aux_namelist[i]: int(i+1) for i in range(0, len(self.aux_namelist))}
-            self.footprint_id_shift = int(self.footprint_id_shift + len(self.aux_namelist))
-            self.height_id_shift = int(self.height_id_shift + len(self.aux_namelist))
+            self.footprint_id_shift = int(self.footprint_id_shift - aux_id_shift + len(self.aux_namelist))
+            self.height_id_shift = int(self.height_id_shift - aux_id_shift + len(self.aux_namelist))
         
         self.cached = cached
         self.db = {}
@@ -505,7 +508,7 @@ class PatchDatasetFromHDF5(Dataset):
                 raise NotImplementedError
 
             # ---------convert numpy.ndarray of shape [H, W, C] to torch.tensor [C, H, W]
-            patch = tensor_transform(patch)
+            patch = tensor_transform(patch).type(torch.FloatTensor)
 
             patch_multi_band.append(patch)
 
@@ -524,7 +527,7 @@ class PatchDatasetFromHDF5(Dataset):
             for k in self.aux_namelist:
                 aux_patch = self.db[group_name][k][shift]
                 aux_patch = np.transpose(aux_patch, (1, 2, 0))
-                aux_feat.append(tensor_transform(aux_patch))
+                aux_feat.append(tensor_transform(aux_patch).type(torch.FloatTensor))
             aux_feat = torch.cat(aux_feat, dim=0)
             sample["aux_feature"] = aux_feat
 
@@ -537,6 +540,150 @@ class PatchDatasetFromHDF5(Dataset):
                     # ------determine the type of the dataset: feature or value to be predicted
                     if dataset_name == target_variable:
                         self.target_info[group_name] = {"dataset_name": dataset_name, "shape": dataset.shape[0]}
+                    else:
+                        if group_name not in self.feature_info.keys():
+                            self.feature_info[group_name] = {}
+                        self.feature_info[group_name][dataset_name] = {"shape": dataset.shape}
+
+    def cache_dateset(self, h5_dataset_path):
+        with h5py.File(h5_dataset_path, "r") as h5_file:
+            for group_name in self.group_namelist:
+                group = h5_file[group_name]
+                self.db[group_name] = {}
+                for dataset_name, dataset in group.items():
+                    self.db[group_name][dataset_name] = dataset
+
+
+class PatchDatasetFromHDF5_MTL(Dataset):
+    def __init__(self, h5_dataset_path, aggregation_list, s1_prefix="sentinel_1", s2_prefix="sentinel_2", scale=0.0001, cached=True, mode="train", log_scale=False, aux_namelist=None):
+        self.scale = scale
+        self.db = None
+        self.ds_path = h5_dataset_path
+        # ------define feature and target information
+        self.target_info = {}
+        self.feature_info = {}
+        self.set_dataset_info(h5_dataset_path,)
+
+        self.group_namelist = sorted(self.target_info.keys())
+        self.aggregation_list = aggregation_list
+        self.channel_ref = {}
+        band_ref = {"VV": "B1", "VH": "B2", "R": "B1", "G": "B2", "B": "B3", "NIR": "B4"}
+        for aggregation_ops in aggregation_list:
+            self.channel_ref[aggregation_ops] = {"S1_VV": "_".join([s1_prefix, aggregation_ops, band_ref["VV"]]),
+                                                 "S1_VH": "_".join([s1_prefix, aggregation_ops, band_ref["VH"]]),
+                                                 "S2_RGB": ["_".join([s2_prefix, aggregation_ops, band_ref["R"]]),
+                                                            "_".join([s2_prefix, aggregation_ops, band_ref["G"]]),
+                                                            "_".join([s2_prefix, aggregation_ops, band_ref["B"]])],
+                                                 "S2_NIR": "_".join([s2_prefix, aggregation_ops, band_ref["NIR"]])}
+
+        self.aux_namelist = None
+        if aux_namelist is not None:
+            self.aux_namelist = sorted(aux_namelist)
+        
+        self.num_sample_acc = np.cumsum([self.target_info[g]["shape"] for g in self.group_namelist])
+        self.num_sample_acc = np.concatenate([[0], self.num_sample_acc], axis=0)
+
+        # ------Note that only part of data can be stored into memory
+        # ------data cache for faster data loading
+        self.cached = cached
+        self.db = {}
+        if self.cached:
+            self.cache_dateset(h5_dataset_path)
+        # ------we use different DataTransform for training phase and validation phase
+        self.mode = mode
+        self.log_scale = log_scale
+
+    def __len__(self):
+        return self.num_sample_acc[-1]
+
+    def __getitem__(self, index):
+        # ------avoid opening HDF5 file each time (only available for HDF5 in version >= 1.10)
+        # ---------see the discussion: https://discuss.pytorch.org/t/dataloader-when-num-worker-0-there-is-bug/25643/16
+        if self.db is None:
+            self.db = h5py.File(self.ds_path, "r")
+        # ------By specifying side="right", we have: num_sample_acc[group_id-1] <= index < num_sample_acc[group_id]
+        group_id = np.searchsorted(self.num_sample_acc, index, side="right")
+        group_name = self.group_namelist[group_id-1]
+        shift = index - self.num_sample_acc[group_id-1]
+        # ------get feature information from multi-band patches
+        # with h5py.File(self.ds_path, "r") as h5_file:
+        patch_multi_band = []
+        for aggregation_ops in self.channel_ref.keys():
+            s1_vv_name = self.channel_ref[aggregation_ops]["S1_VV"]
+            s1_vv_coef_patch = get_backscatterCoef(self.db[group_name][s1_vv_name][shift]) * 255
+            s1_vv_coef_patch = np.transpose(s1_vv_coef_patch, (1, 2, 0))
+
+            s1_vh_name = self.channel_ref[aggregation_ops]["S1_VH"]
+            s1_vh_coef_patch = get_backscatterCoef(self.db[group_name][s1_vh_name][shift]) * 255
+            s1_vh_coef_patch = np.transpose(s1_vh_coef_patch, (1, 2, 0))
+
+            s2_rgb_patch_tmp = []
+            s2_band_namelist = self.channel_ref[aggregation_ops]["S2_RGB"]
+            # ---------shape of s2_patch_tmp: (num_s1_band, num_scale, size_y, size_x)
+            for s2_band in s2_band_namelist:
+                s2_rgb_patch_tmp.append(self.db[group_name][s2_band][shift])
+            s2_rgb_patch = np.concatenate(s2_rgb_patch_tmp, axis=0) * self.scale * 255
+            s2_rgb_patch = np.transpose(s2_rgb_patch, (1, 2, 0))
+            # s2_rgb_patch = rgb_rescale(s2_rgb_patch, vmin=0, vmax=255, axis=(0, 1))
+
+            s2_nir_name = self.channel_ref[aggregation_ops]["S2_NIR"]
+            s2_nir_patch = self.db[group_name][s2_nir_name][shift] * self.scale * 255
+            s2_nir_patch = np.transpose(s2_nir_patch, (1, 2, 0))
+            # s2_nir_patch = rgb_rescale(s2_nir_patch, vmin=0, vmax=255, axis=(0, 1))
+
+            if self.mode == "train":
+                s1_vv_patch = gray_scale_data_transforms["train"](image=s1_vv_coef_patch.astype(np.uint8))["image"]
+                s1_vh_patch = gray_scale_data_transforms["train"](image=s1_vh_coef_patch.astype(np.uint8))["image"]
+                s2_rgb_patch = rgb_scale_data_transforms["train"](image=s2_rgb_patch.astype(np.uint8))["image"]
+                s2_nir_patch = gray_scale_data_transforms["train"](image=s2_nir_patch.astype(np.uint8))["image"]
+                patch = np.concatenate([s1_vv_patch, s1_vh_patch, s2_rgb_patch, s2_nir_patch], axis=-1)
+                # ---------flip the input patch randomly
+                patch = flip_transform(image=patch)["image"]
+            elif self.mode == "valid":
+                s1_vv_patch = gray_scale_data_transforms["valid"](image=s1_vv_coef_patch.astype(np.uint8))["image"]
+                s1_vh_patch = gray_scale_data_transforms["valid"](image=s1_vh_coef_patch.astype(np.uint8))["image"]
+                s2_rgb_patch = rgb_scale_data_transforms["valid"](image=s2_rgb_patch.astype(np.uint8))["image"]
+                s2_nir_patch = gray_scale_data_transforms["valid"](image=s2_nir_patch.astype(np.uint8))["image"]
+                patch = np.concatenate([s1_vv_patch, s1_vh_patch, s2_rgb_patch, s2_nir_patch], axis=-1)
+            else:
+                raise NotImplementedError
+
+            # ---------convert numpy.ndarray of shape [H, W, C] to torch.tensor [C, H, W]
+            patch = tensor_transform(patch).type(torch.FloatTensor)
+
+            patch_multi_band.append(patch)
+
+        feat = torch.cat(patch_multi_band, dim=0)
+
+        # ------get value information
+        footprint = self.db[group_name]["BuildingFootprint"][shift]
+        height = self.db[group_name]["BuildingHeight"][shift]
+
+        if self.log_scale:
+            sample = {"feature": feat, "footprint": footprint, "height": np.log(height)}
+        else:
+            sample = {"feature": feat, "footprint": footprint, "height": height}
+
+        if self.aux_namelist is not None:
+            aux_feat = []
+            for k in self.aux_namelist:
+                aux_patch = self.db[group_name][k][shift]
+                aux_patch = np.transpose(aux_patch, (1, 2, 0))
+                aux_feat.append(tensor_transform(aux_patch).type(torch.FloatTensor))
+            aux_feat = torch.cat(aux_feat, dim=0)
+            sample["aux_feature"] = aux_feat
+
+        return sample
+
+    def set_dataset_info(self, h5_dataset_path):
+        with h5py.File(h5_dataset_path, "r") as h5_file:
+            for group_name, group in h5_file.items():
+                for dataset_name, dataset in group.items():
+                    # ------determine the type of the dataset: feature or value to be predicted
+                    if dataset_name == "BuildingFootprint":
+                        self.target_info[group_name] = {"dataset_name_1": dataset_name, "shape": dataset.shape[0]}
+                    elif dataset_name == "BuildingHeight":
+                        self.target_info[group_name] = {"dataset_name_2": dataset_name, "shape": dataset.shape[0]}
                     else:
                         if group_name not in self.feature_info.keys():
                             self.feature_info[group_name] = {}
@@ -564,12 +711,25 @@ def load_data_hdf5(h5_dataset_path, batch_size, num_workers, target_variable, ag
     return data_loader
 
 
-def load_data_lmdb(lmdb_dataset_path, batch_size, num_workers, aggregation_list, mode, target_id_shift=1, cached=True, log_scale=False, aux_namelist=None):
+def load_data_hdf5_MTL(h5_dataset_path, batch_size, num_workers, aggregation_list, mode, cached=True, log_scale=False, aux_namelist=None):
     if mode == "train":
-        patch_dataset = PatchDatasetFromLMDB(lmdb_dataset_path, aggregation_list, mode="train", target_id_shift=target_id_shift, cached=cached, log_scale=log_scale, aux_namelist=aux_namelist)
+        patch_dataset = PatchDatasetFromHDF5_MTL(h5_dataset_path, aggregation_list, mode="train", cached=cached, log_scale=log_scale, aux_namelist=aux_namelist)
         data_loader = DataLoader(patch_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, drop_last=True)
     elif mode == "valid":
-        patch_dataset = PatchDatasetFromLMDB(lmdb_dataset_path, aggregation_list, mode="valid", target_id_shift=target_id_shift, cached=cached, log_scale=log_scale, aux_namelist=aux_namelist)
+        patch_dataset = PatchDatasetFromHDF5_MTL(h5_dataset_path, aggregation_list, mode="valid", cached=cached, log_scale=log_scale, aux_namelist=aux_namelist)
+        data_loader = DataLoader(patch_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, drop_last=True)
+    else:
+        raise NotImplementedError
+
+    return data_loader
+
+
+def load_data_lmdb(lmdb_dataset_path, batch_size, num_workers, aggregation_list, mode, target_id_shift=1, cached=True, log_scale=False, aux_namelist=None, aux_id_shift=1):
+    if mode == "train":
+        patch_dataset = PatchDatasetFromLMDB(lmdb_dataset_path, aggregation_list, mode="train", target_id_shift=target_id_shift, cached=cached, log_scale=log_scale, aux_namelist=aux_namelist, aux_id_shift=aux_id_shift)
+        data_loader = DataLoader(patch_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, drop_last=True)
+    elif mode == "valid":
+        patch_dataset = PatchDatasetFromLMDB(lmdb_dataset_path, aggregation_list, mode="valid", target_id_shift=target_id_shift, cached=cached, log_scale=log_scale, aux_namelist=aux_namelist, aux_id_shift=aux_id_shift)
         data_loader = DataLoader(patch_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, drop_last=True)
     else:
         raise NotImplementedError

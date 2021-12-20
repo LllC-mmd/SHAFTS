@@ -10,7 +10,7 @@ import albumentations as album
 clahe_transform = album.CLAHE(p=1.0)
 
 
-def check_extent(base_dir, tif_ref, x_min, y_min, x_max, y_max, padding):
+def check_extent(base_dir, tif_ref, x_min, y_min, x_max, y_max, padding, s1_key="sentinel_1", s2_key="sentinel_2"):
     x_min_list = []
     y_min_list = []
     x_max_list = []
@@ -142,7 +142,7 @@ def get_patch_from_tiff(file_dict, loc_list, s1_key, s2_key, suffix_list, patch_
             # ------------get the multi-scale patches center on the selected pixel from the Sentinel-2 target data
             s2_name = "_".join([s2_key, aggregate_key])
             s2_patch = GetPatchFromTiffArray(tiff_array=tiffArr[s2_name], tiff_geoTransform=tiffGeoTransform[s2_name],
-                                             x=x_loc, y=y_loc, patch_size=patch_size)
+                                                x=x_loc, y=y_loc, patch_size=patch_size)
 
             for n in range(0, num_s2_band):
                 s2_feature_name = "_".join([s2_key, aggregate_key, "B" + str(n+1)])
@@ -567,7 +567,7 @@ def pred_height_from_tiff_ML(x_min, y_min, x_max, y_max, out_file, tif_ref, patc
 
     # ------get features from input GeoTif files
     # ---------[0] check whether the available GeoTiff file satisfies our needs for prediction
-    check_extent(tif_ref, x_min, y_min, x_max, y_max, padding)
+    check_extent(tif_ref, x_min, y_min, x_max, y_max, padding, s1_key=s1_key, s2_key=s2_key)
 
     # ---------[0] clip the given GeoTiff file to the target extent for memory saving
     tif_input = dict.fromkeys(tif_ref)
@@ -850,7 +850,7 @@ def pred_height_from_tiff_DL_patch(extent: list, out_file: str, tif_ref: dict, p
 
     # ------[2] prepare the input tiff
     # ---------check whether the available GeoTiff file satisfies our needs for prediction
-    check_extent(base_dir, tif_ref, x_min, y_min, x_max, y_max, padding)
+    check_extent(base_dir, tif_ref, x_min, y_min, x_max, y_max, padding, s1_key=s1_key, s2_key=s2_key)
 
     # ---------clip the given GeoTiff file to the target extent for memory saving
     tif_input = dict.fromkeys(tif_ref)
@@ -987,7 +987,7 @@ def pred_height_from_tiff_DL_patch(extent: list, out_file: str, tif_ref: dict, p
                 if aux_namelist is not None:
                     for feat in aux_namelist:
                         aux_patch = GetPatchFromTiffArray(tiff_array=tiffArr[feat], tiff_geoTransform=tiffGeoTransform[feat],
-                                                        x=x_loc, y=y_loc, patch_size=[aux_size])
+                                                            x=x_loc, y=y_loc, patch_size=[aux_size])
                         input_band[feat] = aux_patch
 
                 '''
@@ -1038,7 +1038,7 @@ def pred_height_from_tiff_DL_patch(extent: list, out_file: str, tif_ref: dict, p
                 if aux_namelist is not None:
                     aux_feat = []
                     for k in aux_namelist:
-                        aux_patch = input_band[feat]
+                        aux_patch = input_band[k]
                         aux_patch = np.transpose(aux_patch, (1, 2, 0))
                         aux_feat.append(tensor_transform(aux_patch).type(torch.FloatTensor))
                     aux_feat = torch.cat(aux_feat, dim=0)
@@ -1057,10 +1057,10 @@ def pred_height_from_tiff_DL_patch(extent: list, out_file: str, tif_ref: dict, p
 
         if aux_batch_input is not None:
             with torch.no_grad():
-                output = est_model(batch_input)
+                output = est_model(batch_input, aux_batch_input)
         else:
             with torch.no_grad():
-                output = est_model(batch_input, aux_batch_input)
+                output = est_model(batch_input)
 
         output = torch.squeeze(output)
         output = output.cpu().numpy()
@@ -1253,7 +1253,7 @@ def pred_height_from_tiff_DL_patch_MTL(extent: list, out_footprint_file: str, ou
 
     # ------[2] prepare the input tiff
     # ---------check whether the available GeoTiff file satisfies our needs for prediction
-    check_extent(base_dir, tif_ref, x_min, y_min, x_max, y_max, padding)
+    check_extent(base_dir, tif_ref, x_min, y_min, x_max, y_max, padding, s1_key=s1_key, s2_key=s2_key)
 
     # ---------clip the given GeoTiff file to the target extent for memory saving
     tif_input = dict.fromkeys(tif_ref)
@@ -1362,7 +1362,6 @@ def pred_height_from_tiff_DL_patch_MTL(extent: list, out_footprint_file: str, ou
 
                 y_loc = y_center[yid]
                 x_loc = x_center[xid]
-
                 patch_multi_agg = []
                 # ------------gather the feature patch centered on this selected pixel
                 for aggregate_key in tif_input.keys():
@@ -1387,6 +1386,12 @@ def pred_height_from_tiff_DL_patch_MTL(extent: list, out_footprint_file: str, ou
                         s2_feature_name = "_".join([s2_key, aggregate_key, "B" + str(n + 1)])
                         input_band[s2_feature_name] = s2_patch[n:len(s2_patch):num_s2_band]
 
+                # ---------gather the feature information centered on this selected pixel
+                if aux_namelist is not None:
+                    for feat in aux_namelist:
+                        aux_patch = GetPatchFromTiffArray(tiff_array=tiffArr[feat], tiff_geoTransform=tiffGeoTransform[feat],
+                                                            x=x_loc, y=y_loc, patch_size=[aux_size])
+                        input_band[feat] = aux_patch
                 '''
                 # ------------fill NaN values
                 nan_ratio_dict = dict((k, calc_nan_ratio(input_band[k][0])) for k in input_band.keys())
@@ -1435,7 +1440,7 @@ def pred_height_from_tiff_DL_patch_MTL(extent: list, out_footprint_file: str, ou
                 if aux_namelist is not None:
                     aux_feat = []
                     for k in aux_namelist:
-                        aux_patch = input_band[feat]
+                        aux_patch = input_band[k]
                         aux_patch = np.transpose(aux_patch, (1, 2, 0))
                         aux_feat.append(tensor_transform(aux_patch).type(torch.FloatTensor))
                     aux_feat = torch.cat(aux_feat, dim=0)
@@ -1454,10 +1459,10 @@ def pred_height_from_tiff_DL_patch_MTL(extent: list, out_footprint_file: str, ou
         
         if aux_batch_input is not None:
             with torch.no_grad():
-                output_footprint, output_height = est_model(batch_input)
+                output_footprint, output_height = est_model(batch_input, aux_batch_input)
         else:
             with torch.no_grad():
-                output_footprint, output_height = est_model(batch_input, aux_batch_input)
+                output_footprint, output_height = est_model(batch_input)
 
         output_footprint = torch.squeeze(output_footprint)
         output_height = torch.squeeze(output_height)
