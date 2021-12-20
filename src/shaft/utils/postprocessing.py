@@ -843,7 +843,6 @@ if __name__ == "__main__":
 
     '''
     # ------Li comparison
-
     # ------calculate the minimum foortprint for urban area identification based on percolation theory
     infer_prefix = "../testCase"
     res_prefix = os.path.join(infer_prefix, "infer_test_Glasgow", "1000m", "Li_comparison")
@@ -871,7 +870,7 @@ if __name__ == "__main__":
     source_ref["ref"]["CCMat"] = "cc_ref_1000m_Li.npy"
     source_ref["ref"]["height"] = os.path.join(res_prefix, "Glasgow_2020_building_height_LiClip.tif")
     source_ref["ref"]["footprint"] = os.path.join(res_prefix, "Glasgow_2020_building_footprint_LiClip.tif")
-    calc_mask_fromCCMat_single(source_ref=source_ref, density_test=d_test, ny=ny, nx=nx
+    calc_mask_fromCCMat_single(source_ref=source_ref, density_test=d_test, ny=ny, nx=nx,
                                save_path=os.path.join(res_prefix, "Glasgow_mask_{0}.tif".format(res_type)),
                                h_min=5.0, ratio=1.0)
     print(os.path.join(res_prefix, "Glasgow_mask_{0}.tif".format(res_type)))
@@ -882,7 +881,7 @@ if __name__ == "__main__":
     source_ref["li"]["CCMat"] = "cc_li_1000m_Li.npy"
     source_ref["li"]["height"] = os.path.join(res_prefix, "Glasgow_height_li2020_clip.tif")
     source_ref["li"]["footprint"] = os.path.join(res_prefix, "Glasgow_footprint_li2020_clip.tif")
-    calc_mask_fromCCMat_single(source_ref=source_ref, density_test=d_test, ny=ny, nx=nx
+    calc_mask_fromCCMat_single(source_ref=source_ref, density_test=d_test, ny=ny, nx=nx,
                                save_path=os.path.join(res_prefix, "Glasgow_mask_{0}.tif".format(res_type)),
                                h_min=5.0, ratio=1.0)
     print(os.path.join(res_prefix, "Glasgow_mask_{0}.tif".format(res_type)))
@@ -895,7 +894,7 @@ if __name__ == "__main__":
         source_ref[res_type]["footprint"] = os.path.join(res_prefix, "Glasgow_footprint_{0}_LiClip.tif".format(res_type))
 
     for res_type in ["senet", "senet_MTL"]:
-        calc_mask_fromCCMat_single(source_ref=source_ref, density_test=d_test, ny=ny, nx=nx
+        calc_mask_fromCCMat_single(source_ref=source_ref, density_test=d_test, ny=ny, nx=nx,
                                    save_path=os.path.join(res_prefix, "Glasgow_mask_{0}.tif".format(res_type)),
                                    h_min=5.0, ratio=0.5)
         print(os.path.join(res_prefix, "Glasgow_mask_{0}.tif".format(res_type)))
