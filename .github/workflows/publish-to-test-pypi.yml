@@ -18,13 +18,10 @@ jobs:
     - name: Set up conda
       uses: conda-incubator/setup-miniconda@v2
       with:
-        auto-activate-base: true
+        activate-environment: shaft
+        auto-activate-base: False
         python-version: 3.7
-
-    - name: Install dependencies
-      run: |
-        # $CONDA is an environment variable pointing to the root of the miniconda directory
-        conda env update --file env.yml --name base
+        environment-file: env.yml
     
     - name: Install pypa/build
       run: |
