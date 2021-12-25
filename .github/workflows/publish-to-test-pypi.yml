@@ -21,8 +21,10 @@ jobs:
         miniconda-version: "latest"
         activate-environment: shaft
         python-version: ${{ matrix.python-version }}
+        mamba-version: "*"
         auto-activate-base: False
-        channels: conda-forge
+        channels: conda-forge,defaults
+        channel-priority: true
         environment-file: env.yml
     
     - name: Install pypa/build
