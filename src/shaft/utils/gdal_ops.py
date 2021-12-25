@@ -1,7 +1,6 @@
 import os
 import glob
 import math
-from re import sub
 import shutil
 import subprocess
 import multiprocessing
