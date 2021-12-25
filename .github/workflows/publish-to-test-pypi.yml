@@ -8,7 +8,7 @@ jobs:
 
     strategy:
       matrix:
-        py: ["3.7"]
+        python-version: ["3.7"]
         os: ["macOS-latest", "windows-latest", "ubuntu-latest"]
 
     runs-on: ${{ matrix.os }}
@@ -20,8 +20,9 @@ jobs:
       with:
         miniconda-version: "latest"
         activate-environment: shaft
+        python-version: ${{ matrix.python-version }}
         auto-activate-base: False
-        python-version: 3.7
+        channels: conda-forge
         environment-file: env.yml
     
     - name: Install pypa/build
