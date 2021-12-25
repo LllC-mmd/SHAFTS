@@ -33,7 +33,7 @@ main:
 
 # install package in dev mode and do pytest
 test:
-	conda install -e .
+	pip install -e .
 	pytest -s ${MODULE}/testCase
 
 # If wanted, clean all *.o files after build

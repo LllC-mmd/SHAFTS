@@ -141,7 +141,7 @@ class TestShaft(TestCase):
                 output_height_file = "_".join(sample_loc[loc]["output_prefix"], "height", output_suffix + "_MTL") + ".tif"
                 output_height_path = os.path.join(output_dir, output_height_file)
                 
-                shaft.pred_height_from_tiff_DL_patch_MTL(extent=extent, output_footprint_file=output_footprint_path, out_height_file=output_height_path, 
+                shaft.pred_height_from_tiff_DL_patch_MTL(extent=extent, out_footprint_file=output_footprint_path, out_height_file=output_height_path, 
                                                             tif_ref=input_ref, patch_size=input_size,
                                                             predictor=self.model, trained_record=pt_path, resolution=output_res,
                                                             s1_key=self.s1_key, s2_key=self.s2_key,
