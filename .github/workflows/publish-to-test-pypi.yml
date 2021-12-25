@@ -21,9 +21,7 @@ jobs:
         miniconda-version: "latest"
         activate-environment: shaft
         python-version: ${{ matrix.python-version }}
-        mamba-version: "*"
         auto-activate-base: False
-        channels: conda-forge,defaults
         channel-priority: true
         environment-file: env.yml
     
