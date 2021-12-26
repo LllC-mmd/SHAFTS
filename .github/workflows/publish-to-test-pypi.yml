@@ -28,8 +28,9 @@ jobs:
         environment-file: env.yml
     
     - name: Install pypa/build
+      shell: bash -l {0}
       run: |
-        conda install pandas wheel pytest
+        conda install wheel pytest
         make test
         make wheel
 
