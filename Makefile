@@ -3,18 +3,18 @@
 
 # OS-specific configurations
 ifeq ($(OS),Windows_NT)
-	PYTHON_exe = python.exe
+	PYTHON_exe = $CONDA/bin/python.exe
 
 else
 	UNAME_S := $(shell uname -s)
 
 	ifeq ($(UNAME_S),Linux) # Linux
-		PYTHON_exe=python
+		PYTHON_exe = $CONDA/bin/python
 
 	endif
 
 	ifeq ($(UNAME_S),Darwin) # macOS
-		PYTHON_exe=python
+		PYTHON_exe = $CONDA/bin/python
 
 	endif
 
