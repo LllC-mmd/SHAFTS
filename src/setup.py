@@ -67,9 +67,9 @@ setup(
         "kneed",  # kneed point detection for CCAP algorithms
     ],
     include_package_data=True,
-    python_requires="~=3.7",
+    python_requires="~=3.9",
     classifiers=[
-        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.9",
         "Intended Audience :: Education",
         "Intended Audience :: Science/Research",
         "Operating System :: MacOS :: MacOS X",
