@@ -3,9 +3,7 @@ import argparse
 import datetime
 
 import pandas as pd
-import gdal
-import ogr
-import osr
+from osgeo import gdal, ogr, osr
 import ee
 
 

@@ -49,7 +49,7 @@ setup(
     install_requires=[
         "torch",
         "torchvision",
-        "gdal ~= 3.0",
+        "gdal >= 3.2.0",
         "albumentations",
         "scikit-learn",
         "scikit-image",

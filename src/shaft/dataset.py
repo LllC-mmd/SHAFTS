@@ -10,7 +10,7 @@ import h5py
 import pandas as pd
 import scipy.interpolate as interp
 
-import gdal
+from osgeo import gdal
 
 from mathexpr import rgb_rescale_band
 

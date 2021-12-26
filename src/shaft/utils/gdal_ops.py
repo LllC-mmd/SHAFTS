@@ -7,9 +7,7 @@ import multiprocessing
 import numpy as np
 import pandas as pd
 
-import gdal
-import ogr
-import osr
+from osgeo import gdal, ogr, osr
 import geopandas as gpd
 from geopandas import tools as gtools
 from shapely import ops as gops
