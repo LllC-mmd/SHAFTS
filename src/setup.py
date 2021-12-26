@@ -47,7 +47,7 @@ setup(
     # distclass=BinaryDistribution,
     ext_modules=[],
     install_requires=[
-        "pytorch",
+        "torch",
         "torchvision",
         "gdal >= 3.0",
         "albumentations",
