@@ -3,7 +3,7 @@ import json
 import multiprocessing
 import numpy as np
 import cv2
-import gdal
+from osgeo import gdal
 from kneed import KneeLocator
 
 
