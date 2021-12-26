@@ -78,7 +78,7 @@ class TestShaft(TestCase):
                 pt_path = self.stl_trained_record[target_res]
 
                 output_dir = os.path.join("./infer_test_{0}".format(loc), str(target_res) + "m")
-                output_file = "_".join(sample_loc[loc]["output_prefix"], self.target_var, output_suffix) + ".tif"
+                output_file = "_".join([sample_loc[loc]["output_prefix"], self.target_var, output_suffix]) + ".tif"
                 output_path = os.path.join(output_dir, output_file)
 
                 shaft.pred_height_from_tiff_DL_patch(extent=extent, out_file=output_path, tif_ref=input_ref, patch_size=input_size,
@@ -136,9 +136,9 @@ class TestShaft(TestCase):
                 pt_path = self.mtl_trained_record[target_res]
 
                 output_dir = os.path.join("./infer_test_{0}".format(loc), str(target_res) + "m")
-                output_footprint_file = "_".join(sample_loc[loc]["output_prefix"], "footprint", output_suffix + "_MTL") + ".tif"
+                output_footprint_file = "_".join([sample_loc[loc]["output_prefix"], "footprint", output_suffix + "_MTL"]) + ".tif"
                 output_footprint_path = os.path.join(output_dir, output_footprint_file)
-                output_height_file = "_".join(sample_loc[loc]["output_prefix"], "height", output_suffix + "_MTL") + ".tif"
+                output_height_file = "_".join([sample_loc[loc]["output_prefix"], "height", output_suffix + "_MTL"]) + ".tif"
                 output_height_path = os.path.join(output_dir, output_height_file)
                 
                 shaft.pred_height_from_tiff_DL_patch_MTL(extent=extent, out_footprint_file=output_footprint_path, out_height_file=output_height_path, 
