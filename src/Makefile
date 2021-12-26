@@ -33,6 +33,7 @@ main:
 
 # install package in dev mode and do pytest
 test:
+	conda activate base
 	pip install -e .
 	pytest -s ${MODULE}/testCase
 
