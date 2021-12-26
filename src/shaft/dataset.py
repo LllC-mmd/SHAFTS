@@ -12,7 +12,7 @@ import scipy.interpolate as interp
 
 from osgeo import gdal
 
-from mathexpr import rgb_rescale_band
+from .mathexpr import rgb_rescale_band
 
 
 def fill_nan_nearest(dta):

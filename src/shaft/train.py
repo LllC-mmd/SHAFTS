@@ -5,7 +5,7 @@ from sklearn import model_selection as ms
 from sklearn import preprocessing
 from sklearn import decomposition
 
-from model import *
+from .model import *
 
 
 # ************************* [1] Feature Collection *************************

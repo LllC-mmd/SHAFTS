@@ -9,7 +9,7 @@ import joblib
 
 import xgboost
 
-from mathexpr import *
+from .mathexpr import *
 
 
 # ************************* [1] Machine Learning Method *************************

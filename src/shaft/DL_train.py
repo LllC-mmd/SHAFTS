@@ -5,8 +5,8 @@ from collections import OrderedDict
 from sklearn import metrics
 import glob
 
-from DL_dataset import *
-from DL_model import *
+from .DL_dataset import *
+from .DL_model import *
 
 
 class Evaluator(object):

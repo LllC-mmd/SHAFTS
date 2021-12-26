@@ -1,8 +1,8 @@
 import glob
 
-from train import *
-from dataset import *
-from DL_train import *
+from .train import *
+from .dataset import *
+from .DL_train import *
 
 import albumentations as album
 

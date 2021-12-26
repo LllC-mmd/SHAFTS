@@ -9,7 +9,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 import albumentations as album
 
-from mathexpr import *
+from .mathexpr import *
 
 
 rgb_scale_data_transforms = {
