@@ -65,6 +65,7 @@ setup(
         "lmdb",
         "pyarrow",
         "kneed",  # kneed point detection for CCAP algorithms
+        "earthengine-api"
     ],
     include_package_data=True,
     python_requires="~=3.9",
