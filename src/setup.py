@@ -42,6 +42,8 @@ setup(
         "shaft": [
             "*.json",
             "utils/*",
+            "testCase/*",
+            "dl-models/*"
         ]
     },
     # distclass=BinaryDistribution,
