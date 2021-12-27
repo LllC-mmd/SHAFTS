@@ -38,10 +38,12 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: python-package-distributions
-        path: dist
+        path: shaft/dist/
 
   deploy:
     name: Publish 🐍📦 to (Test)PyPI
+    needs:
+      - build-n-publish
     runs-on: ubuntu-latest
 
     steps:
@@ -49,12 +51,12 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: python-package-distributions
-          path: dist
+          path: dist/
 
       - name: Publish distribution 📦 to Test PyPI
         uses: pypa/gh-action-pypi-publish@master
         with:
-          packages_dir: dist
+          packages_dir: dist/
           verbose: true
           skip_existing: true
           password: ${{ secrets.TEST_PYPI_API_TOKEN }}
@@ -64,7 +66,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags')
         uses: pypa/gh-action-pypi-publish@master
         with:
-          packages_dir: dist
+          packages_dir: dist/
           verbose: true
           skip_existing: true
           password: ${{ secrets.PYPI_API_TOKEN }}
