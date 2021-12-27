@@ -796,6 +796,9 @@ def pred_height_from_tiff_DL_patch(extent: list, out_file: str, tif_ref: dict, p
 
     cuda_used = (cuda_used and torch.cuda.is_available())
 
+    if not os.path.exists(base_dir):
+        os.mkdir(base_dir)
+
     aux_namelist = None
     aux_size = None
     if aux_feat_info is not None:
@@ -1206,6 +1209,9 @@ def pred_height_from_tiff_DL_patch_MTL(extent: list, out_footprint_file: str, ou
         num_block = 1
 
     cuda_used = (cuda_used and torch.cuda.is_available())
+
+    if not os.path.exists(base_dir):
+        os.mkdir(base_dir)
 
     aux_namelist = None
     aux_size = None
