@@ -35,10 +35,10 @@ jobs:
         make wheel
     
     - name: Store the ${{ matrix.os }} wheel
-        uses: actions/upload-artifact@v2
-        with:
-          name: python-package-distributions
-          path: dist
+      uses: actions/upload-artifact@v2
+      with:
+        name: python-package-distributions
+        path: dist
 
   deploy:
       name: Publish 🐍📦 to (Test)PyPI
