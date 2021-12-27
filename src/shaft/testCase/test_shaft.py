@@ -19,7 +19,7 @@ class TestShaft(TestCase):
         self.s2_key="sentinel_2"
         self.input_size = {100: [15], 250: [30], 500: [60], 1000: [120]}
         self.res = {100: 0.0009, 250: 0.00225, 500: 0.0045, 1000: 0.009}
-        self.padding = 0.0005
+        self.padding = 0.03
         
         self.backbone = "senet"
         self.model = "SEResNet18"
@@ -43,7 +43,7 @@ class TestShaft(TestCase):
         # ------specify the sample case
         sample_loc = {
             "THU": {
-                "extent": [116.3093695, 39.9918187, 116.3306385, 40.0118074],
+                "extent": [116.31916, 40.00171, 116.32078, 40.00189],
                 "raw_data": {
                     "50pt": {
                         self.s1_key: os.path.join(shaft._path_shaft_module, "testCase", "infer_test_THU/raw_data/THU_2020_sentinel_1_50pt.tif"),
@@ -72,7 +72,8 @@ class TestShaft(TestCase):
             extent = sample_loc[loc]["extent"]
             input_ref = sample_loc[loc]["raw_data"]
             aux_feat_info = sample_loc[loc]["aux_feat"]
-            for target_res in [100, 250, 500, 1000]:
+            #for target_res in [100, 250, 500, 1000]:
+            for target_res in [100]:
                 input_size = self.input_size[target_res]
                 output_res = self.res[target_res]
                 pt_path = self.stl_trained_record[target_res]
@@ -100,7 +101,7 @@ class TestShaft(TestCase):
         # ------specify the sample case
         sample_loc = {
             "THU": {
-                "extent": [116.3093695, 39.9918187, 116.3306385, 40.0118074],
+                "extent": [116.31916, 40.00171, 116.32078, 40.00189],
                 "raw_data": {
                     "50pt": {
                         self.s1_key: os.path.join(shaft._path_shaft_module, "testCase", "infer_test_THU/raw_data/THU_2020_sentinel_1_50pt.tif"),
@@ -130,7 +131,8 @@ class TestShaft(TestCase):
             extent = sample_loc[loc]["extent"]
             input_ref = sample_loc[loc]["raw_data"]
             aux_feat_info = sample_loc[loc]["aux_feat"]
-            for target_res in [100, 250, 500, 1000]:
+            #for target_res in [100, 250, 500, 1000]:
+            for target_res in [100]:
                 input_size = self.input_size[target_res]
                 output_res = self.res[target_res]
                 pt_path = self.mtl_trained_record[target_res]
