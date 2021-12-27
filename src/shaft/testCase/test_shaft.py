@@ -79,6 +79,8 @@ class TestShaft(TestCase):
                 pt_path = self.stl_trained_record[target_res]
 
                 output_dir = os.path.join(shaft._path_shaft_module, "testCase", "infer_test_{0}".format(loc), str(target_res) + "m")
+                if not os.path.exists(output_dir):
+                    os.makedirs(output_dir)
                 output_file = "_".join([sample_loc[loc]["output_prefix"], self.target_var, output_suffix]) + ".tif"
                 output_path = os.path.join(output_dir, output_file)
 
@@ -138,6 +140,8 @@ class TestShaft(TestCase):
                 pt_path = self.mtl_trained_record[target_res]
 
                 output_dir = os.path.join(shaft._path_shaft_module, "testCase", "infer_test_{0}".format(loc), str(target_res) + "m")
+                if not os.path.exists(output_dir):
+                    os.makedirs(output_dir)
                 output_footprint_file = "_".join([sample_loc[loc]["output_prefix"], "footprint", output_suffix + "_MTL"]) + ".tif"
                 output_footprint_path = os.path.join(output_dir, output_footprint_file)
                 output_height_file = "_".join([sample_loc[loc]["output_prefix"], "height", output_suffix + "_MTL"]) + ".tif"
