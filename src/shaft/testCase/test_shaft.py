@@ -25,7 +25,7 @@ class TestShaft(TestCase):
         self.model = "SEResNet18"
         self.batch_size = 2
 
-        self.path_prefix = "../dl-models"
+        self.path_prefix = os.path.join(shaft._path_shaft_module, "dl-models")
         self.stl_trained_record = {100: os.path.join(self.path_prefix, self.target_var, "check_pt_{0}_100m".format(self.backbone), "experiment_0", "checkpoint.pth.tar"), 
                                     250: os.path.join(self.path_prefix, self.target_var, "check_pt_{0}_250m".format(self.backbone), "experiment_0", "checkpoint.pth.tar"), 
                                     500: os.path.join(self.path_prefix, self.target_var, "check_pt_{0}_500m".format(self.backbone), "experiment_0", "checkpoint.pth.tar"), 
