@@ -19,26 +19,26 @@ jobs:
       uses: conda-incubator/setup-miniconda@v2
       with:
         miniconda-version: "latest"
-        # nvironment variables don’t persist between steps in a workflow, which breaks some things in Conda. 
+        # nvironment variables don’t persist between steps in a workflow, which breaks some things in Conda.
         # Installing the environment’s packages into the base environment avoids this issue
         activate-environment: base
         python-version: ${{ matrix.python-version }}
         auto-activate-base: true
         channel-priority: true
         environment-file: env.yml
-    
+
     - name: Install pypa/build
       shell: bash -l {0}
       run: |
         conda install wheel pytest
         make test
         make wheel
-    
+
     - name: Store the ${{ matrix.os }} wheel
       uses: actions/upload-artifact@v2
       with:
         name: python-package-distributions
-        path: shaft/dist/
+        path: src/dist/
 
   deploy:
     name: Publish 🐍📦 to (Test)PyPI
