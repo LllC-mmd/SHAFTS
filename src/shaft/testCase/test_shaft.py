@@ -46,13 +46,13 @@ class TestShaft(TestCase):
                 "extent": [116.3093695, 39.9918187, 116.3306385, 40.0118074],
                 "raw_data": {
                     "50pt": {
-                        self.s1_key: "./infer_test_THU/raw_data/THU_2020_sentinel_1_50pt.tif",
-                        self.s2_key: "./infer_test_THU/raw_data/THU_2020_sentinel_2_50pt.tif",
+                        self.s1_key: os.path.join(shaft._path_shaft_module, "testCase", "infer_test_THU/raw_data/THU_2020_sentinel_1_50pt.tif"),
+                        self.s2_key: os.path.join(shaft._path_shaft_module, "testCase", "infer_test_THU/raw_data/THU_2020_sentinel_2_50pt.tif"),
                     }
                 },
                 "aux_feat": {
                     "DEM": {
-                        "path": "./infer_test_THU/raw_data/THU_srtm.tif",
+                        "path": os.path.join(shaft._path_shaft_module, "testCase", "infer_test_THU/raw_data/THU_srtm.tif"),
                         "patch_size_ratio": 1.0,
                     } 
                 },
@@ -77,7 +77,7 @@ class TestShaft(TestCase):
                 output_res = self.res[target_res]
                 pt_path = self.stl_trained_record[target_res]
 
-                output_dir = os.path.join("./infer_test_{0}".format(loc), str(target_res) + "m")
+                output_dir = os.path.join(shaft._path_shaft_module, "testCase", "infer_test_{0}".format(loc), str(target_res) + "m")
                 output_file = "_".join([sample_loc[loc]["output_prefix"], self.target_var, output_suffix]) + ".tif"
                 output_path = os.path.join(output_dir, output_file)
 
@@ -103,13 +103,13 @@ class TestShaft(TestCase):
                 "extent": [116.3093695, 39.9918187, 116.3306385, 40.0118074],
                 "raw_data": {
                     "50pt": {
-                        self.s1_key: "./infer_test_THU/raw_data/THU_2020_sentinel_1_50pt.tif",
-                        self.s2_key: "./infer_test_THU/raw_data/THU_2020_sentinel_2_50pt.tif",
+                        self.s1_key: os.path.join(shaft._path_shaft_module, "testCase", "infer_test_THU/raw_data/THU_2020_sentinel_1_50pt.tif"),
+                        self.s2_key: os.path.join(shaft._path_shaft_module, "testCase", "infer_test_THU/raw_data/THU_2020_sentinel_2_50pt.tif"),
                     }
                 },
                 "aux_feat": {
                     "DEM": {
-                        "path": "./infer_test_THU/raw_data/THU_srtm.tif",
+                        "path": os.path.join(shaft._path_shaft_module, "testCase", "infer_test_THU/raw_data/THU_srtm.tif"),
                         "patch_size_ratio": 1.0,
                     } 
                 },
@@ -135,7 +135,7 @@ class TestShaft(TestCase):
                 output_res = self.res[target_res]
                 pt_path = self.mtl_trained_record[target_res]
 
-                output_dir = os.path.join("./infer_test_{0}".format(loc), str(target_res) + "m")
+                output_dir = os.path.join(shaft._path_shaft_module, "testCase", "/infer_test_{0}".format(loc), str(target_res) + "m")
                 output_footprint_file = "_".join([sample_loc[loc]["output_prefix"], "footprint", output_suffix + "_MTL"]) + ".tif"
                 output_footprint_path = os.path.join(output_dir, output_footprint_file)
                 output_height_file = "_".join([sample_loc[loc]["output_prefix"], "height", output_suffix + "_MTL"]) + ".tif"
