@@ -49,8 +49,8 @@ setup(
     # distclass=BinaryDistribution,
     ext_modules=[],
     install_requires=[
-        "torch",
-        "torchvision",
+        "torch >= 1.8.0",
+        "torchvision >= 0.9.0",
         "gdal >= 3.2.0",
         "albumentations",
         "scikit-learn",
