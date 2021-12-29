@@ -88,7 +88,7 @@ class TestShaft(TestCase):
                                                         predictor=self.model, trained_record=pt_path, resolution=output_res,
                                                         s1_key=self.s1_key, s2_key=self.s2_key,
                                                         aux_feat_info=aux_feat_info, base_dir=self.tmp_dir, padding=self.padding, 
-                                                        batch_size=self.batch_size, tmp_suffix=None, activation=self.activation, log_scale=False,
+                                                        batch_size=self.batch_size, tmp_suffix="_stl_{0}".format(target_res), activation=self.activation, log_scale=False,
                                                         cuda_used=self.cuda_used, v_min=self.v_min, v_max=self.v_max)
                 
                 test_flag.append(os.path.exists(output_path))
@@ -152,7 +152,7 @@ class TestShaft(TestCase):
                                                             predictor=self.model, trained_record=pt_path, resolution=output_res,
                                                             s1_key=self.s1_key, s2_key=self.s2_key,
                                                             aux_feat_info=aux_feat_info, crossed=False, base_dir=self.tmp_dir, padding=self.padding, 
-                                                            batch_size=self.batch_size, tmp_suffix=None, log_scale=False,
+                                                            batch_size=self.batch_size, tmp_suffix="_mtl_{0}".format(target_res), log_scale=False,
                                                             cuda_used=self.cuda_used, 
                                                             h_min=self.v_min, h_max=self.v_max, f_min=0.0, f_max=1.0)
                 

@@ -10,7 +10,7 @@ import albumentations as album
 clahe_transform = album.CLAHE(p=1.0)
 
 
-def check_extent(base_dir, tif_ref, x_min, y_min, x_max, y_max, padding, s1_key="sentinel_1", s2_key="sentinel_2"):
+def check_extent(base_dir, tif_ref, x_min, y_min, x_max, y_max, padding, s1_key="sentinel_1", s2_key="sentinel_2", suffix=None):
     x_min_list = []
     y_min_list = []
     x_max_list = []
@@ -24,7 +24,7 @@ def check_extent(base_dir, tif_ref, x_min, y_min, x_max, y_max, padding, s1_key=
         else:
             s1_input = tif_ref[aggregate_key][s1_key]
 
-        test_s1_tif = os.path.join(base_dir, "TEMP_S1.tif")
+        test_s1_tif = os.path.join(base_dir, "TEMP_S1{0}.tif".format(suffix))
         # os.system("gdalwarp {0} {1}".format(" ".join(s1_input), test_s1_tif))
         gdal.Warp(destNameOrDestDS=test_s1_tif, srcDSOrSrcDSTab=s1_input)
 
@@ -38,7 +38,7 @@ def check_extent(base_dir, tif_ref, x_min, y_min, x_max, y_max, padding, s1_key=
         else:
             s2_input = tif_ref[aggregate_key][s2_key]
 
-        test_s2_tif = os.path.join(base_dir, "TEMP_S2.tif")
+        test_s2_tif = os.path.join(base_dir, "TEMP_S2{0}.tif".format(suffix))
         # os.system("gdalwarp {0} {1}".format(" ".join(s2_input), test_s2_tif))
         gdal.Warp(destNameOrDestDS=test_s2_tif, srcDSOrSrcDSTab=s2_input)
 
@@ -56,7 +56,11 @@ def check_extent(base_dir, tif_ref, x_min, y_min, x_max, y_max, padding, s1_key=
         y_max_list.append(s1_y_max)
         y_max_list.append(s2_y_max)
 
+        s1_ds.FlushCache()
+        s1_ds = None
         os.remove(test_s1_tif)
+        s2_ds.FlushCache()
+        s2_ds = None
         os.remove(test_s2_tif)
 
     if x_min - padding < max(x_min_list) or y_min - padding < max(y_min_list) or x_max + padding > min(x_max_list) or y_max + padding > min(y_max_list):
@@ -853,7 +857,7 @@ def pred_height_from_tiff_DL_patch(extent: list, out_file: str, tif_ref: dict, p
 
     # ------[2] prepare the input tiff
     # ---------check whether the available GeoTiff file satisfies our needs for prediction
-    check_extent(base_dir, tif_ref, x_min, y_min, x_max, y_max, padding, s1_key=s1_key, s2_key=s2_key)
+    check_extent(base_dir, tif_ref, x_min, y_min, x_max, y_max, padding, s1_key=s1_key, s2_key=s2_key, suffix=tmp_suffix)
 
     # ---------clip the given GeoTiff file to the target extent for memory saving
     tif_input = dict.fromkeys(tif_ref)
@@ -1259,7 +1263,7 @@ def pred_height_from_tiff_DL_patch_MTL(extent: list, out_footprint_file: str, ou
 
     # ------[2] prepare the input tiff
     # ---------check whether the available GeoTiff file satisfies our needs for prediction
-    check_extent(base_dir, tif_ref, x_min, y_min, x_max, y_max, padding, s1_key=s1_key, s2_key=s2_key)
+    check_extent(base_dir, tif_ref, x_min, y_min, x_max, y_max, padding, s1_key=s1_key, s2_key=s2_key, suffix=tmp_suffix)
 
     # ---------clip the given GeoTiff file to the target extent for memory saving
     tif_input = dict.fromkeys(tif_ref)
