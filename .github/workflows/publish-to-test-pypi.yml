@@ -12,6 +12,7 @@ jobs:
         os: ["macOS-latest", "windows-latest", "ubuntu-latest"]
 
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 480
 
     steps:
     - uses: actions/checkout@master
