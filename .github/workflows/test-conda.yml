@@ -20,18 +20,23 @@ jobs:
     steps:
     - uses: actions/checkout@master
     - name: Set up conda
-      uses: conda-incubator/setup-miniconda@v2.1.1
+      uses: conda-incubator/setup-miniconda@master
       with:
         miniconda-version: "latest"
         # environment variables don’t persist between steps in a workflow, which breaks some things in Conda.
         # Installing the environment’s packages into the base environment avoids this issue
         auto-activate-base: true
-        activate-environment: true
+        activate-environment: ""
         python-version: ${{ matrix.python-version }}
         channel-priority: true
         environment-file: env.yml
         miniforge-variant: Mambaforge
         use-mamba: true
+
+    - name: show conda info
+      run: |
+          conda info
+          conda list
 
     - name: Install pypa/build
       shell: bash -l {0}
