@@ -30,7 +30,7 @@ jobs:
         auto-activate-base: true
         channel-priority: true
         environment-file: env.yml
-        miniforge-variable: Mambaforge
+        miniforge-variant: Mambaforge
         use-mamba: true
 
     - name: Install pypa/build
