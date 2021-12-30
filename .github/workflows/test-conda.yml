@@ -25,9 +25,9 @@ jobs:
         miniconda-version: "latest"
         # environment variables don’t persist between steps in a workflow, which breaks some things in Conda.
         # Installing the environment’s packages into the base environment avoids this issue
-        auto-activate-base: true
-        activate-environment: ""
-        python-version: ${{ matrix.python-version }}
+        # auto-activate-base: true
+        activate-environment: test
+        # python-version: ${{ matrix.python-version }}
         channel-priority: true
         environment-file: env.yml
         miniforge-variant: Mambaforge
