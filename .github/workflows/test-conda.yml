@@ -9,7 +9,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.9"]
-        os: [macOS-latest, windows-latest, ubuntu-18.04]
+        os: [macOS-latest, windows-latest, ubuntu-latest]
 
     runs-on: ${{ matrix.os }}
     # timeout-minutes: 480
@@ -22,16 +22,20 @@ jobs:
     - name: Set up conda
       uses: conda-incubator/setup-miniconda@master
       with:
-        miniconda-version: "latest"
+        # miniconda-version: "latest"
         # environment variables don’t persist between steps in a workflow, which breaks some things in Conda.
         # Installing the environment’s packages into the base environment avoids this issue
         # auto-activate-base: true
-        activate-environment: test
+        # activate-environment: test
         # python-version: ${{ matrix.python-version }}
         channel-priority: true
+        auto-activate-base: false
+        activate-environment: anaconda-client-env
         environment-file: env.yml
-        miniforge-variant: Mambaforge
-        use-mamba: true
+        auto-update-conda: true
+        # miniforge-variant: Mambaforge
+        # use-mamba: true
+        # condarc-file: etc/example-condarc.yml
 
     - name: show conda info
       run: |
