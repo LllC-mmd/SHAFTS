@@ -9,8 +9,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.9"]
-        #os: ["macOS-latest", "windows-latest", "ubuntu-latest"]
-        os: ["ubuntu-latest"]
+        os: [macOS-latest, windows-latest, ubuntu-18.04]
 
     runs-on: ${{ matrix.os }}
     # timeout-minutes: 480
