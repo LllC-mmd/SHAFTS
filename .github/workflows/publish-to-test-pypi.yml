@@ -9,10 +9,11 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.9"]
-        os: ["macOS-latest", "windows-latest", "ubuntu-latest"]
+        #os: ["macOS-latest", "windows-latest", "ubuntu-latest"]
+        os: ["ubuntu-latest"]
 
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 480
+    # timeout-minutes: 480
 
     steps:
     - uses: actions/checkout@master
