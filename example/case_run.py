@@ -46,25 +46,6 @@ if __name__ == "__main__":
             },
             "output_prefix": "Glasgow",
         },
-        # ------case of Beijing
-        "Beijing": {
-            "extent": {
-                1000: [116.204, 39.823, 116.575, 40.038]
-            },
-            "raw_data": {
-                "50pt": {
-                    s1_key: os.path.join(case_prefix, "infer_test_Beijing", "raw_data", "Beijing_2020_sentinel_1.tif"),
-                    s2_key: os.path.join(case_prefix, "infer_test_Beijing", "raw_data", "Beijing_2020_sentinel_2.tif"),
-                }
-            },
-            "aux_feat": {
-                "DEM": {
-                    "path": os.path.join(case_prefix, "infer_test_Beijing", "raw_data", "Beijing_srtm.tif"),
-                    "patch_size_ratio": 1.0,
-                } 
-            },
-            "output_prefix": "Beijing",
-        },
         # ------case of Chicago
         "Chicago": {
             "extent": {
@@ -83,28 +64,6 @@ if __name__ == "__main__":
                 } 
             },
             "output_prefix": "Chicago",
-        },
-        # ------case of LosAngeles
-        "LosAngeles": {
-            "extent": {
-                100: [-118.4050, 33.8790, -118.0000, 34.1750],
-                250: [-118.4050, 33.8790, -118.0000, 34.1750],
-                500: [-118.4050, 33.8790, -118.0000, 34.1750],
-                1000: [-118.4050, 33.8790, -118.0000, 34.1750]
-            },
-            "raw_data": {
-                "50pt": {
-                    s1_key: os.path.join(case_prefix, "infer_test_LosAngeles", "raw_data", "LosAngeles_2018_sentinel_1.tif"),
-                    s2_key: os.path.join(case_prefix, "infer_test_LosAngeles", "raw_data", "LosAngeles_2018_sentinel_2.tif"),
-                }
-            },
-            "aux_feat": {
-                "DEM": {
-                    "path": os.path.join(case_prefix, "infer_test_LosAngeles", "raw_data", "LosAngeles_srtm.tif"),
-                    "patch_size_ratio": 1.0,
-                } 
-            },
-            "output_prefix": "LosAngeles",
         },
     }
 
@@ -128,7 +87,6 @@ if __name__ == "__main__":
         }
     }
 
-
     input_size = {100: [15], 250: [30], 500: [60], 1000: [120]}
     res = {100: 0.0009, 250: 0.00225, 500: 0.0045, 1000: 0.009}
     padding = 0.03
@@ -136,6 +94,7 @@ if __name__ == "__main__":
     cuda_used = torch.cuda.is_available()
     batch_size = 64
 
+    # ---start building height and footprint prediction
     for loc in case_loc.keys():
         input_ref = case_loc[loc]["raw_data"]
         aux_feat_info = case_loc[loc]["aux_feat"]

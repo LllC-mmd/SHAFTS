@@ -10,7 +10,10 @@ from .postprocessing import (
 )
 
 from .GEE_ops import (
+    srtm_download_by_extent,
     srtm_download,
+    sentinel1_download_by_extent,
     sentinel1_download,
+    sentinel2_download_by_extent,
     sentinel2_download
 )
