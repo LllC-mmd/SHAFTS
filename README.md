@@ -60,7 +60,7 @@ After preparing above necessary images, building height and footprint informatio
 
 - `pred_height_from_tiff_DL_patch_MTL`: using deep-learning-based (DL) models trained by Multi-Task-Learning (MTL).
 
-Since the total amount of relevant parameter settings are relatively more than data downloading, a sample script for prediction can be found under the `example` directory.
+Since the total amount of relevant parameter settings are relatively more than data downloading, potential users can ref to the sample script for prediction named `case_run.py` under the `example` directory.
 
 ## Pretrained DL models
 
