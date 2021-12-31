@@ -55,33 +55,33 @@ jobs:
         name: python-package-distributions
         path: src/dist/
 
-  # deploy:
-  #   name: Publish 🐍📦 to (Test)PyPI
-  #   needs:
-  #     - build-n-publish
-  #   runs-on: ubuntu-latest
+  deploy:
+    name: Publish 🐍📦 to (Test)PyPI
+    needs:
+      - build-n-publish
+    runs-on: ubuntu-latest
 
-  #   steps:
-  #     - name: Download all the dists
-  #       uses: actions/download-artifact@v2
-  #       with:
-  #         name: python-package-distributions
-  #         path: dist/
+    steps:
+      - name: Download all the dists
+        uses: actions/download-artifact@v2
+        with:
+          name: python-package-distributions
+          path: dist/
 
-  #     - name: Publish distribution 📦 to Test PyPI
-  #       uses: pypa/gh-action-pypi-publish@master
-  #       with:
-  #         packages_dir: dist/
-  #         verbose: true
-  #         skip_existing: true
-  #         password: ${{ secrets.TEST_PYPI_API_TOKEN }}
-  #         repository_url: https://test.pypi.org/legacy/
+      - name: Publish distribution 📦 to Test PyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          packages_dir: dist/
+          verbose: true
+          skip_existing: true
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          repository_url: https://test.pypi.org/legacy/
 
-  #     - name: Publish distribution 📦 to PyPI
-  #       if: startsWith(github.ref, 'refs/tags')
-  #       uses: pypa/gh-action-pypi-publish@master
-  #       with:
-  #         packages_dir: dist/
-  #         verbose: true
-  #         skip_existing: true
-  #         password: ${{ secrets.PYPI_API_TOKEN }}
+      - name: Publish distribution 📦 to PyPI
+        if: startsWith(github.ref, 'refs/tags')
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          packages_dir: dist/
+          verbose: true
+          skip_existing: true
+          password: ${{ secrets.PYPI_API_TOKEN }}
