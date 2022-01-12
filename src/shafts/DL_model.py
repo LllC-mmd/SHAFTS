@@ -1,6 +1,6 @@
 import os
 import math
-from DL_module import *
+from .DL_module import *
 
 
 # ************************* Backbones *************************
