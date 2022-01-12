@@ -25,7 +25,7 @@ class TestShaft(TestCase):
         self.model = "SEResNet18"
         self.batch_size = 2
 
-        self.path_prefix = os.path.join(shaft._path_shaft_module, "dl-models")
+        self.path_prefix = os.path.join(shafts._path_shaft_module, "dl-models")
         self.stl_trained_record = {100: os.path.join(self.path_prefix, self.target_var, "check_pt_{0}_100m".format(self.backbone), "experiment_0", "checkpoint.pth.tar"), 
                                     250: os.path.join(self.path_prefix, self.target_var, "check_pt_{0}_250m".format(self.backbone), "experiment_0", "checkpoint.pth.tar"), 
                                     500: os.path.join(self.path_prefix, self.target_var, "check_pt_{0}_500m".format(self.backbone), "experiment_0", "checkpoint.pth.tar"), 
@@ -46,13 +46,13 @@ class TestShaft(TestCase):
                 "extent": [116.31916, 40.00171, 116.32078, 40.00189],
                 "raw_data": {
                     "50pt": {
-                        self.s1_key: os.path.join(shaft._path_shaft_module, "testCase", "infer_test_THU/raw_data/THU_2020_sentinel_1_50pt.tif"),
-                        self.s2_key: os.path.join(shaft._path_shaft_module, "testCase", "infer_test_THU/raw_data/THU_2020_sentinel_2_50pt.tif"),
+                        self.s1_key: os.path.join(shafts._path_shaft_module, "testCase", "infer_test_THU/raw_data/THU_2020_sentinel_1_50pt.tif"),
+                        self.s2_key: os.path.join(shafts._path_shaft_module, "testCase", "infer_test_THU/raw_data/THU_2020_sentinel_2_50pt.tif"),
                     }
                 },
                 "aux_feat": {
                     "DEM": {
-                        "path": os.path.join(shaft._path_shaft_module, "testCase", "infer_test_THU/raw_data/THU_srtm.tif"),
+                        "path": os.path.join(shafts._path_shaft_module, "testCase", "infer_test_THU/raw_data/THU_srtm.tif"),
                         "patch_size_ratio": 1.0,
                     } 
                 },
@@ -78,13 +78,13 @@ class TestShaft(TestCase):
                 output_res = self.res[target_res]
                 pt_path = self.stl_trained_record[target_res]
 
-                output_dir = os.path.join(shaft._path_shaft_module, "testCase", "infer_test_{0}".format(loc), str(target_res) + "m")
+                output_dir = os.path.join(shafts._path_shaft_module, "testCase", "infer_test_{0}".format(loc), str(target_res) + "m")
                 if not os.path.exists(output_dir):
                     os.makedirs(output_dir)
                 output_file = "_".join([sample_loc[loc]["output_prefix"], self.target_var, output_suffix]) + ".tif"
                 output_path = os.path.join(output_dir, output_file)
 
-                shaft.pred_height_from_tiff_DL_patch(extent=extent, out_file=output_path, tif_ref=input_ref, patch_size=input_size,
+                shafts.pred_height_from_tiff_DL_patch(extent=extent, out_file=output_path, tif_ref=input_ref, patch_size=input_size,
                                                         predictor=self.model, trained_record=pt_path, resolution=output_res,
                                                         s1_key=self.s1_key, s2_key=self.s2_key,
                                                         aux_feat_info=aux_feat_info, base_dir=self.tmp_dir, padding=self.padding, 
@@ -106,13 +106,13 @@ class TestShaft(TestCase):
                 "extent": [116.31916, 40.00171, 116.32078, 40.00189],
                 "raw_data": {
                     "50pt": {
-                        self.s1_key: os.path.join(shaft._path_shaft_module, "testCase", "infer_test_THU/raw_data/THU_2020_sentinel_1_50pt.tif"),
-                        self.s2_key: os.path.join(shaft._path_shaft_module, "testCase", "infer_test_THU/raw_data/THU_2020_sentinel_2_50pt.tif"),
+                        self.s1_key: os.path.join(shafts._path_shaft_module, "testCase", "infer_test_THU/raw_data/THU_2020_sentinel_1_50pt.tif"),
+                        self.s2_key: os.path.join(shafts._path_shaft_module, "testCase", "infer_test_THU/raw_data/THU_2020_sentinel_2_50pt.tif"),
                     }
                 },
                 "aux_feat": {
                     "DEM": {
-                        "path": os.path.join(shaft._path_shaft_module, "testCase", "infer_test_THU/raw_data/THU_srtm.tif"),
+                        "path": os.path.join(shafts._path_shaft_module, "testCase", "infer_test_THU/raw_data/THU_srtm.tif"),
                         "patch_size_ratio": 1.0,
                     } 
                 },
@@ -139,7 +139,7 @@ class TestShaft(TestCase):
                 output_res = self.res[target_res]
                 pt_path = self.mtl_trained_record[target_res]
 
-                output_dir = os.path.join(shaft._path_shaft_module, "testCase", "infer_test_{0}".format(loc), str(target_res) + "m")
+                output_dir = os.path.join(shafts._path_shaft_module, "testCase", "infer_test_{0}".format(loc), str(target_res) + "m")
                 if not os.path.exists(output_dir):
                     os.makedirs(output_dir)
                 output_footprint_file = "_".join([sample_loc[loc]["output_prefix"], "footprint", output_suffix + "_MTL"]) + ".tif"
@@ -147,7 +147,7 @@ class TestShaft(TestCase):
                 output_height_file = "_".join([sample_loc[loc]["output_prefix"], "height", output_suffix + "_MTL"]) + ".tif"
                 output_height_path = os.path.join(output_dir, output_height_file)
                 
-                shaft.pred_height_from_tiff_DL_patch_MTL(extent=extent, out_footprint_file=output_footprint_path, out_height_file=output_height_path, 
+                shafts.pred_height_from_tiff_DL_patch_MTL(extent=extent, out_footprint_file=output_footprint_path, out_height_file=output_height_path, 
                                                             tif_ref=input_ref, patch_size=input_size,
                                                             predictor=self.model, trained_record=pt_path, resolution=output_res,
                                                             s1_key=self.s1_key, s2_key=self.s2_key,
