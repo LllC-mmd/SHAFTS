@@ -37,7 +37,7 @@ setup(
         ]
     ),
     license="GPL-V3.0",
-    packages=["shaft"],
+    packages=["shafts"],
     package_data={
         "shafts": [
             "*.json",
