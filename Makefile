@@ -1,5 +1,5 @@
 # -*- makefile -*-
-.PHONY: main clean test pip shaft
+.PHONY: main clean test pip shafts
 
 # OS-specific configurations
 ifeq ($(OS),Windows_NT)
@@ -27,7 +27,7 @@ PYTHON := $(if $(PYTHON_exe),$(PYTHON_exe),python)
 # All the files which include modules used by other modules (these therefore
 # need to be compiled first)
 
-MODULE = shaft
+MODULE = shafts
 
 # default make options
 main:
@@ -43,7 +43,7 @@ wheel:
 clean:
 	$(MAKE) -C $(src_dir) clean
 
-# make shaft and run test cases
+# make shafts and run test cases
 test:
 	conda init bash
 	$(MAKE) -C $(src_dir) test

@@ -1,5 +1,5 @@
 # -*- makefile -*-
-.PHONY: main clean test pip shaft
+.PHONY: main clean test pip shafts
 
 # OS-specific configurations
 ifeq ($(OS),Windows_NT)
@@ -29,7 +29,7 @@ PYTHON := $(if $(PYTHON_exe),$(PYTHON_exe),python)
 # All the files which include modules used by other modules (these therefore
 # need to be compiled first)
 
-MODULE = shaft
+MODULE = shafts
 
 main:
 	conda init bash

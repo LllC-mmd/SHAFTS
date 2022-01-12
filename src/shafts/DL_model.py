@@ -1,6 +1,6 @@
 import os
 import math
-from .DL_module import *
+from DL_module import *
 
 
 # ************************* Backbones *************************
@@ -36,7 +36,8 @@ class ResNetBackbone(nn.Module):
             self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
             num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 3)
         elif input_size in [60]:
-            self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=5, stride=2, padding=1, bias=False)
+            # self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=5, stride=2, padding=1, bias=False)
+            self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=7, stride=2, padding=1, bias=False)
             self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
             num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 3)
         else:
@@ -131,11 +132,13 @@ class SENetBackbone(nn.Module):
 
         self.maxpool = None
         if input_size in [120]:
-            self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=5, stride=2, padding=1, bias=False)
+            # self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=5, stride=2, padding=1, bias=False)
+            self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=7, stride=2, padding=1, bias=False)
             self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
             num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 3)
         elif input_size in [60]:
-            self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=5, stride=2, padding=1, bias=False)
+            # self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=5, stride=2, padding=1, bias=False)
+            self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=7, stride=2, padding=1, bias=False)
             self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
             num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 3)
         else:
@@ -230,11 +233,13 @@ class CBAMBackbone(nn.Module):
 
         self.maxpool = None
         if input_size in [120]:
-            self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=3, stride=1, padding=1, bias=False)
+            # self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=3, stride=1, padding=1, bias=False)
+            self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=7, stride=1, padding=1, bias=False)
             self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
             num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 3)
         elif input_size in [60]:
-            self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=3, stride=1, padding=1, bias=False)
+            # self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=3, stride=1, padding=1, bias=False)
+            self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=7, stride=1, padding=1, bias=False)
             self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
             num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 2)
         else:
@@ -469,15 +474,17 @@ class BuildingNet_aux(nn.Module):
         """
         super(BuildingNet_aux, self).__init__()
         self.cuda_used = cuda_used
+        # aux_in_plane = int(in_plane)
+        aux_in_plane = int(in_plane / 4.0)
         if backbone == "ResNet":
             self.features = ResNetBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block)
-            self.aux_features = ResNetBackbone(num_aux, aux_input_size, in_plane=in_plane, num_block=num_block)
+            self.aux_features = ResNetBackbone(num_aux, aux_input_size, in_plane=aux_in_plane, num_block=num_block)
         elif backbone == "SENet":
             self.features = SENetBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block)
-            self.aux_features = SENetBackbone(num_aux, aux_input_size, in_plane=in_plane, num_block=num_block)
+            self.aux_features = SENetBackbone(num_aux, aux_input_size, in_plane=aux_in_plane, num_block=num_block)
         elif backbone == "CBAM":
             self.features = CBAMBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block)
-            self.aux_features = CBAMBackbone(num_aux, aux_input_size, in_plane=in_plane, num_block=num_block)
+            self.aux_features = CBAMBackbone(num_aux, aux_input_size, in_plane=aux_in_plane, num_block=num_block)
         else:
             raise NotImplementedError("Unknown backbone!")
 
@@ -501,9 +508,9 @@ class BuildingNet_aux(nn.Module):
             num_plane = int(in_plane * math.pow(2, num_reduce))
         
         if aux_num_reduce == 1:
-            aux_num_plane = int(in_plane * math.pow(2, aux_num_reduce + 1))
+            aux_num_plane = int(aux_in_plane * math.pow(2, aux_num_reduce + 1))
         else:
-            aux_num_plane = int(in_plane * math.pow(2, aux_num_reduce))
+            aux_num_plane = int(aux_in_plane * math.pow(2, aux_num_reduce))
         
         num_plane = num_plane + aux_num_plane
 
@@ -766,15 +773,17 @@ class BuildingNetMTL_aux(nn.Module):
         super(BuildingNetMTL_aux, self).__init__()
         self.crossed = crossed
         self.cuda_used = cuda_used
+        # aux_in_plane = int(in_plane)
+        aux_in_plane = int(in_plane / 4.0)
         if backbone == "ResNet":
             self.features = ResNetBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block)
-            self.aux_features = ResNetBackbone(num_aux, aux_input_size, in_plane=in_plane, num_block=num_block)
+            self.aux_features = ResNetBackbone(num_aux, aux_input_size, in_plane=aux_in_plane, num_block=num_block)
         elif backbone == "SENet":
             self.features = SENetBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block)
-            self.aux_features = SENetBackbone(num_aux, aux_input_size, in_plane=in_plane, num_block=num_block)
+            self.aux_features = SENetBackbone(num_aux, aux_input_size, in_plane=aux_in_plane, num_block=num_block)
         elif backbone == "CBAM":
             self.features = CBAMBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block)
-            self.aux_features = CBAMBackbone(num_aux, aux_input_size, in_plane=in_plane, num_block=num_block)
+            self.aux_features = CBAMBackbone(num_aux, aux_input_size, in_plane=aux_in_plane, num_block=num_block)
         else:
             raise NotImplementedError("Unknown backbone!")
 
@@ -799,9 +808,9 @@ class BuildingNetMTL_aux(nn.Module):
             num_plane = int(in_plane * math.pow(2, num_reduce))
 
         if aux_num_reduce == 1:
-            aux_num_plane = int(in_plane * math.pow(2, aux_num_reduce + 1))
+            aux_num_plane = int(aux_in_plane * math.pow(2, aux_num_reduce + 1))
         else:
-            aux_num_plane = int(in_plane * math.pow(2, aux_num_reduce))
+            aux_num_plane = int(aux_in_plane * math.pow(2, aux_num_reduce))
         
         num_plane = num_plane + aux_num_plane
 

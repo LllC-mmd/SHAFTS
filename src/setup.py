@@ -2,7 +2,7 @@ from setuptools import setup
 import pandas as pd
 
 
-ser_ver = pd.read_json("./shaft/shaft_version.json", typ="series", convert_dates=False)
+ser_ver = pd.read_json("./shafts/shaft_version.json", typ="series", convert_dates=False)
 print(ser_ver)
 __version__ = f"{ser_ver.ver_milestone}.{ser_ver.ver_major}.{ser_ver.ver_minor}{ser_ver.ver_remark}"
 
@@ -12,11 +12,11 @@ def readme():
         with open("./README.md", encoding="utf-8") as f:
             return f.read()
     except:
-        return f"SHAFT package"
+        return f"SHAFTS package"
 
 
 setup(
-    name="shaft",
+    name="shafts",
     version=__version__,
     description="Simultaneous building Height And FootprinT extraction from Sentinel Imagery",
     long_description=readme(),
@@ -39,7 +39,7 @@ setup(
     license="GPL-V3.0",
     packages=["shaft"],
     package_data={
-        "shaft": [
+        "shafts": [
             "*.json",
             "utils/*",
             "testCase/*",
