@@ -3,7 +3,7 @@ import shutil
 from unittest import TestCase
 import warnings
 import torch
-import shaft
+import shafts
 
 
 class TestShaft(TestCase):
