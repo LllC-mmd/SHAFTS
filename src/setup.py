@@ -70,9 +70,9 @@ setup(
         "earthengine-api"
     ],
     include_package_data=True,
-    python_requires="~=3.9",
+    python_requires=">=3.8",
     classifiers=[
-        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.8",
         "Intended Audience :: Education",
         "Intended Audience :: Science/Research",
         "Operating System :: MacOS :: MacOS X",
