@@ -2,6 +2,22 @@ import torch
 import torch.nn as nn
 
 
+def get_activation(act: str, inplace=True):
+    if act == "relu":
+        return nn.ReLU(inplace=inplace)
+    elif act == "sigmoid":
+        return nn.Sigmoid()
+    elif act == "tanh":
+        return nn.Tanh()
+    elif act == "gelu":
+        return nn.GELU()
+    # ------Swish activation requires torch >= 1.7.0
+    elif act == "swish":
+        return nn.SiLU()
+    else:
+        return NotImplementedError("Unknown activation function !!!")
+
+
 def downSamplingChoice(in_plane, out_plane, stride):
     if (stride != 1) or (in_plane != out_plane):
         downsample = nn.Sequential(
@@ -20,11 +36,12 @@ def downSamplingChoice(in_plane, out_plane, stride):
 # ------In 2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR) (pp. 770–778).
 class BasicResBlock(nn.Module):
 
-    def __init__(self, in_plane, num_plane, stride=1, downsample=None):
+    def __init__(self, in_plane, num_plane, stride=1, downsample=None, activation="relu"):
         super(BasicResBlock, self).__init__()
         self.conv1 = nn.Conv2d(in_channels=in_plane, out_channels=num_plane, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(num_plane)
-        self.relu = nn.ReLU(inplace=True)
+        # self.relu = nn.ReLU(inplace=True)
+        self.act = get_activation(act=activation, inplace=True)
         self.conv2 = nn.Conv2d(in_channels=num_plane, out_channels=num_plane, kernel_size=3, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(num_plane)
         self.downsample = downsample
@@ -33,7 +50,7 @@ class BasicResBlock(nn.Module):
         # [H, W] -> [H/s, W/s]
         out = self.conv1(x)
         out = self.bn1(out)
-        out = self.relu(out)
+        out = self.act(out)
         # [H/s, W/s] -> [H/s, W/s]
         out = self.conv2(out)
         out = self.bn2(out)
@@ -45,7 +62,7 @@ class BasicResBlock(nn.Module):
             identity = x
 
         out += identity
-        out = self.relu(out)
+        out = self.act(out)
 
         return out
 
@@ -56,17 +73,19 @@ class BasicResBlock(nn.Module):
 # ------In 2018 IEEE Conference on Computer Vision and Pattern Recognition (CVPR) (pp. 7132–7141).
 class SEResBlock(nn.Module):
 
-    def __init__(self, in_plane, num_plane, stride=1, reduction=16, downsample=None):
+    def __init__(self, in_plane, num_plane, stride=1, reduction=16, downsample=None, activation="relu"):
         super(SEResBlock, self).__init__()
         self.conv1 = nn.Conv2d(in_channels=in_plane, out_channels=num_plane, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(num_plane)
-        self.relu = nn.ReLU(inplace=True)
+        # self.relu = nn.ReLU(inplace=True)
+        self.act = get_activation(act=activation, inplace=True)
         self.conv2 = nn.Conv2d(in_channels=num_plane, out_channels=num_plane, kernel_size=3, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(num_plane)
         self.avg_pool = nn.AdaptiveAvgPool2d(output_size=(1, 1))
         self.SEfc = nn.Sequential(
             nn.Linear(num_plane, num_plane // reduction, bias=False),
-            nn.ReLU(inplace=True),
+            # nn.ReLU(inplace=True),
+            get_activation(act=activation, inplace=True),
             nn.Linear(num_plane // reduction, num_plane, bias=False),
             nn.Sigmoid()
         )
@@ -76,7 +95,7 @@ class SEResBlock(nn.Module):
         # [H, W] -> [H/s, W/s]
         out = self.conv1(x)
         out = self.bn1(out)
-        out = self.relu(out)
+        out = self.act(out)
         # [H/s, W/s] -> [H/s, W/s]
         out = self.conv2(out)
         out = self.bn2(out)
@@ -92,7 +111,7 @@ class SEResBlock(nn.Module):
             identity = x
 
         out += identity
-        out = self.relu(out)
+        out = self.act(out)
 
         return out
 
@@ -164,11 +183,12 @@ class SpatialAttentionModule(nn.Module):
 
 class CBAMResBlock(nn.Module):
 
-    def __init__(self, in_plane, num_plane, stride=1, reduction=16, downsample=None):
+    def __init__(self, in_plane, num_plane, stride=1, reduction=16, downsample=None, activation="relu"):
         super(CBAMResBlock, self).__init__()
         self.conv1 = nn.Conv2d(in_channels=in_plane, out_channels=num_plane, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(num_plane)
-        self.relu = nn.ReLU(inplace=True)
+        # self.relu = nn.ReLU(inplace=True)
+        self.act = get_activation(act=activation, inplace=True)
         self.conv2 = nn.Conv2d(in_channels=num_plane, out_channels=num_plane, kernel_size=3, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(num_plane)
         self.avg_pool = nn.AdaptiveAvgPool2d(output_size=(1, 1))
@@ -182,7 +202,7 @@ class CBAMResBlock(nn.Module):
         # [H, W] -> [H/s, W/s]
         out = self.conv1(x)
         out = self.bn1(out)
-        out = self.relu(out)
+        out = self.act(out)
         # [H/s, W/s] -> [H/s, W/s]
         out = self.conv2(out)
         out = self.bn2(out)

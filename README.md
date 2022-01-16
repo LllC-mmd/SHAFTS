@@ -4,15 +4,18 @@ Deep-learning-based simultaneous extraction of building height and footprint fro
 
 ## Package Description
 
-This project focuses on patch-level building height and footprint mapping from Sentinel imagery. **SHAFT** is an abbreviation for ***S**imultaneous building **H**eight **A**nd **F**ootprin**T** extraction from Sentinel Imagery*.
+This project focuses on patch-level building height and footprint mapping from Sentinel imagery. **SHAFT** is an abbreviation for **S**imultaneous building **H**eight **A**nd **F**ootprin**T** extraction from **S**entinel Imagery.
 
 ### Installation
 
-SHAFT requires 64-bit `python` 3.9+ and can be installed with `pip` in command line prompt:
+SHAFT requires 64-bit `python` 3.7+ and can be installed with `pip` in command line prompt:
 
 ```
 python3 -m pip install shaft --upgrade
 ```
+
+We recommend users to install `gdal>=3.2.0` using `conda` first.
+Otherwise, installation may raise error about the environment variables of `gdal`. 
 
 ### Data Download
 
@@ -60,10 +63,16 @@ After preparing above necessary images, building height and footprint informatio
 
 - `pred_height_from_tiff_DL_patch_MTL`: using deep-learning-based (DL) models trained by Multi-Task-Learning (MTL).
 
-Since the total amount of relevant parameter settings are relatively more than data downloading, potential users can ref to the sample script for prediction named `case_run.py` under the `example` directory.
+Since the total amount of relevant parameter settings are relatively more than data downloading, potential users can ref to the sample script for prediction named `minimum_case_run.py` under the `example` directory.
+If batch processing is desired, users can ref to the sample script for prediction named `case_run.py` under the `example` directory.
 
 ## Pretrained DL models
 
-Pretrained DL models named for building height and footprint prediction can be downloaded from this [link](https://drive.google.com/drive/folders/19FNXK6N3-nWfHJZPgUOyltdhBIdJlLLo?usp=sharing) on Google Drive. All of pretrained DL models are stored as `checkpoint.pth.tar`.
+Pretrained DL models named for building height and footprint prediction can be downloaded from this [link](https://drive.google.com/drive/folders/148KZKDVOHOh6VOlZ9bqLby2twQd4UcM9?usp=sharing) on Google Drive. All of pretrained DL models are stored as `checkpoint.pth.tar`.
+
+Note that for each target resolution, we can use STL/MTL models with(out) SRTM data to make predictions.
+For STL models, models with SRTM data are stored under `experiment_1` and models without SRTM data are stored under `experiment_2`.
+For MTL models, models with SRTM data are stored under `experiment_3` and models without SRTM data are stored under `experiment_5`.
+Since MTL models can give both building height and footprint predictions, we only offer full sets of MTL models under the directory of models for building height prediction named `height`.
 
 Note that all of models offered in the above link requires SRTM images as one of input variables, though more pretrained DL models during package development are collected for performance comparison.

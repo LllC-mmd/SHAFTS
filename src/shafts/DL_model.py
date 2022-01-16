@@ -5,7 +5,7 @@ from .DL_module import *
 
 # ************************* Backbones *************************
 class ResNetBackbone(nn.Module):
-    def __init__(self, input_channels: int, input_size: int, in_plane=64, num_block=2):
+    def __init__(self, input_channels: int, input_size: int, in_plane=64, num_block=2, activation="relu"):
         """Initializer for the backbone of ResNet.
 
         Parameters
@@ -29,13 +29,14 @@ class ResNetBackbone(nn.Module):
         #self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(self.in_plane)
         self.relu = nn.ReLU(inplace=True)
+        self.basic_act = activation
 
         self.maxpool = None
-        if input_size in [120]:
+        if input_size in [120, 160]:
             self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=7, stride=2, padding=1, bias=False)
             self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
             num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 3)
-        elif input_size in [60]:
+        elif input_size in [60, 80]:
             # self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=5, stride=2, padding=1, bias=False)
             self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=7, stride=2, padding=1, bias=False)
             self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -85,10 +86,10 @@ class ResNetBackbone(nn.Module):
                 nn.Conv2d(in_channels=self.in_plane, out_channels=num_plane, kernel_size=1, stride=stride, bias=False),
                 nn.BatchNorm2d(num_plane)
             )
-        layers = [BasicResBlock(self.in_plane, num_plane, stride, downsample=downsample)]
+        layers = [BasicResBlock(self.in_plane, num_plane, stride, downsample=downsample, activation=self.basic_act)]
         self.in_plane = num_plane
         for _ in range(1, blocks):
-            layers.append(BasicResBlock(self.in_plane, num_plane))
+            layers.append(BasicResBlock(self.in_plane, num_plane, activation=self.basic_act))
 
         return nn.Sequential(*layers)
 
@@ -106,7 +107,7 @@ class ResNetBackbone(nn.Module):
 
 
 class SENetBackbone(nn.Module):
-    def __init__(self, input_channels: int, input_size: int, in_plane=64, num_block=2):
+    def __init__(self, input_channels: int, input_size: int, in_plane=64, num_block=2, activation="relu"):
         """Initializer for the backbone of SENet.
 
         Parameters
@@ -129,6 +130,7 @@ class SENetBackbone(nn.Module):
         #self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(self.in_plane)
         self.relu = nn.ReLU(inplace=True)
+        self.basic_act = activation
 
         self.maxpool = None
         if input_size in [120]:
@@ -186,10 +188,10 @@ class SENetBackbone(nn.Module):
                 nn.Conv2d(in_channels=self.in_plane, out_channels=num_plane, kernel_size=1, stride=stride, bias=False),
                 nn.BatchNorm2d(num_plane)
             )
-        layers = [SEResBlock(self.in_plane, num_plane, stride, downsample=downsample)]
+        layers = [SEResBlock(self.in_plane, num_plane, stride, downsample=downsample, activation=self.basic_act)]
         self.in_plane = num_plane
         for _ in range(1, blocks):
-            layers.append(SEResBlock(self.in_plane, num_plane))
+            layers.append(SEResBlock(self.in_plane, num_plane, activation=self.basic_act))
 
         return nn.Sequential(*layers)
 
@@ -207,7 +209,7 @@ class SENetBackbone(nn.Module):
 
 
 class CBAMBackbone(nn.Module):
-    def __init__(self, input_channels: int, input_size: int, in_plane=64, num_block=2):
+    def __init__(self, input_channels: int, input_size: int, in_plane=64, num_block=2, activation="relu"):
         """Initializer for the backbone of CBAM.
 
         Parameters
@@ -230,6 +232,7 @@ class CBAMBackbone(nn.Module):
         #self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(self.in_plane)
         self.relu = nn.ReLU(inplace=True)
+        self.basic_act = activation
 
         self.maxpool = None
         if input_size in [120]:
@@ -287,10 +290,10 @@ class CBAMBackbone(nn.Module):
                 nn.Conv2d(in_channels=self.in_plane, out_channels=num_plane, kernel_size=1, stride=stride, bias=False),
                 nn.BatchNorm2d(num_plane)
             )
-        layers = [CBAMResBlock(self.in_plane, num_plane, stride, downsample=downsample)]
+        layers = [CBAMResBlock(self.in_plane, num_plane, stride, downsample=downsample, activation=self.basic_act)]
         self.in_plane = num_plane
         for _ in range(1, blocks):
-            layers.append(CBAMResBlock(self.in_plane, num_plane))
+            layers.append(CBAMResBlock(self.in_plane, num_plane, activation=self.basic_act))
 
         return nn.Sequential(*layers)
 
@@ -309,7 +312,7 @@ class CBAMBackbone(nn.Module):
 
 # ************************* CNNs *************************
 class BuildingNet(nn.Module):
-    def __init__(self, input_channels: int, input_size: int, backbone: str, in_plane=64, num_block=2, log_scale=False, activation="relu", cuda_used=True, **kwargs):
+    def __init__(self, input_channels: int, input_size: int, backbone: str, in_plane=64, num_block=2, log_scale=False, activation="relu", backbone_act="relu", cuda_used=True, **kwargs):
         """Initializer for CNN trained by Single Task Learning (STL) for 3D building information extraction.
 
         Parameters
@@ -334,6 +337,9 @@ class BuildingNet(nn.Module):
         activation : str
             Activation function for model output.
             It can be chosen from: `relu`, `sigmoid`. The default is `relu`.
+        backbone_act : str
+            Activation function for the backbone part of model.
+            It can be chosen from: `relu`, `sigmoid`, `tanh`, `gelu`, `swish`. The default is `relu`.
         cuda_used : boolean
             A flag which controls whether CUDA is used for inference.
             The default is `False`.
@@ -342,11 +348,11 @@ class BuildingNet(nn.Module):
         super(BuildingNet, self).__init__()
         self.cuda_used = cuda_used
         if backbone == "ResNet":
-            self.features = ResNetBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block)
+            self.features = ResNetBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block, activation=backbone_act)
         elif backbone == "SENet":
-            self.features = SENetBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block)
+            self.features = SENetBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block, activation=backbone_act)
         elif backbone == "CBAM":
-            self.features = CBAMBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block)
+            self.features = CBAMBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block, activation=backbone_act)
         else:
             raise NotImplementedError("Unknown backbone!")
 
@@ -437,7 +443,7 @@ class BuildingNet(nn.Module):
 
 
 class BuildingNet_aux(nn.Module):
-    def __init__(self, input_channels: int, input_size: int, aux_input_size: int, backbone: str, in_plane=64, num_aux=1, num_block=2, log_scale=False, activation="relu", cuda_used=True, **kwargs):
+    def __init__(self, input_channels: int, input_size: int, aux_input_size: int, backbone: str, in_plane=64, num_aux=1, num_block=2, log_scale=False, activation="relu", backbone_act="relu", cuda_used=True, **kwargs):
         """Initializer for CNN trained by Single Task Learning (STL) for 3D building information extraction with auxiliary input information.
 
         Parameters
@@ -467,6 +473,9 @@ class BuildingNet_aux(nn.Module):
         activation : str
             Activation function for model output.
             It can be chosen from: `relu`, `sigmoid`. The default is `relu`.
+        backbone_act : str
+            Activation function for the backbone part of model.
+            It can be chosen from: `relu`, `sigmoid`, `tanh`, `gelu`, `swish`. The default is `relu`.
         cuda_used : boolean
             A flag which controls whether CUDA is used for inference.
             The default is `False`.
@@ -477,14 +486,14 @@ class BuildingNet_aux(nn.Module):
         # aux_in_plane = int(in_plane)
         aux_in_plane = int(in_plane / 4.0)
         if backbone == "ResNet":
-            self.features = ResNetBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block)
-            self.aux_features = ResNetBackbone(num_aux, aux_input_size, in_plane=aux_in_plane, num_block=num_block)
+            self.features = ResNetBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block, activation=backbone_act)
+            self.aux_features = ResNetBackbone(num_aux, aux_input_size, in_plane=aux_in_plane, num_block=num_block, activation=backbone_act)
         elif backbone == "SENet":
-            self.features = SENetBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block)
-            self.aux_features = SENetBackbone(num_aux, aux_input_size, in_plane=aux_in_plane, num_block=num_block)
+            self.features = SENetBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block, activation=backbone_act)
+            self.aux_features = SENetBackbone(num_aux, aux_input_size, in_plane=aux_in_plane, num_block=num_block, activation=backbone_act)
         elif backbone == "CBAM":
-            self.features = CBAMBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block)
-            self.aux_features = CBAMBackbone(num_aux, aux_input_size, in_plane=aux_in_plane, num_block=num_block)
+            self.features = CBAMBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block, activation=backbone_act)
+            self.aux_features = CBAMBackbone(num_aux, aux_input_size, in_plane=aux_in_plane, num_block=num_block, activation=backbone_act)
         else:
             raise NotImplementedError("Unknown backbone!")
 
@@ -598,7 +607,7 @@ class BuildingNet_aux(nn.Module):
 
 # ************************* CNNs in their Multi-Task Learning version *************************
 class BuildingNetMTL(nn.Module):
-    def __init__(self, input_channels: int, input_size: int, backbone: str, in_plane=64, num_block=2, crossed=False, log_scale=False, cuda_used=True, **kwargs):
+    def __init__(self, input_channels: int, input_size: int, backbone: str, in_plane=64, num_block=2, crossed=False, log_scale=False, backbone_act="relu", cuda_used=True, **kwargs):
         """Initializer for CNN trained by Multi-Task Learning (MTL) for 3D building information extraction.
 
         Parameters
@@ -632,11 +641,11 @@ class BuildingNetMTL(nn.Module):
         self.crossed = crossed
         self.cuda_used = cuda_used
         if backbone == "ResNet":
-            self.features = ResNetBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block)
+            self.features = ResNetBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block, backbone_act=backbone_act)
         elif backbone == "SENet":
-            self.features = SENetBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block)
+            self.features = SENetBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block, backbone_act=backbone_act)
         elif backbone == "CBAM":
-            self.features = CBAMBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block)
+            self.features = CBAMBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block, backbone_act=backbone_act)
         else:
             raise NotImplementedError("Unknown backbone!")
 
@@ -735,7 +744,7 @@ class BuildingNetMTL(nn.Module):
 
 
 class BuildingNetMTL_aux(nn.Module):
-    def __init__(self, input_channels: int, input_size: int, aux_input_size: int, backbone: str, in_plane=64, num_aux=1, num_block=2, crossed=False, log_scale=False, cuda_used=True, **kwargs):
+    def __init__(self, input_channels: int, input_size: int, aux_input_size: int, backbone: str, in_plane=64, num_aux=1, num_block=2, crossed=False, log_scale=False, backbone_act="relu", cuda_used=True, **kwargs):
         """Initializer for CNN trained by Multi-Task Learning (MTL) for 3D building information extraction with auxiliary input information.
 
         Parameters
@@ -776,14 +785,14 @@ class BuildingNetMTL_aux(nn.Module):
         # aux_in_plane = int(in_plane)
         aux_in_plane = int(in_plane / 4.0)
         if backbone == "ResNet":
-            self.features = ResNetBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block)
-            self.aux_features = ResNetBackbone(num_aux, aux_input_size, in_plane=aux_in_plane, num_block=num_block)
+            self.features = ResNetBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block, activation=backbone_act)
+            self.aux_features = ResNetBackbone(num_aux, aux_input_size, in_plane=aux_in_plane, num_block=num_block, activation=backbone_act)
         elif backbone == "SENet":
-            self.features = SENetBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block)
-            self.aux_features = SENetBackbone(num_aux, aux_input_size, in_plane=aux_in_plane, num_block=num_block)
+            self.features = SENetBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block, activation=backbone_act)
+            self.aux_features = SENetBackbone(num_aux, aux_input_size, in_plane=aux_in_plane, num_block=num_block, activation=backbone_act)
         elif backbone == "CBAM":
-            self.features = CBAMBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block)
-            self.aux_features = CBAMBackbone(num_aux, aux_input_size, in_plane=aux_in_plane, num_block=num_block)
+            self.features = CBAMBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block, activation=backbone_act)
+            self.aux_features = CBAMBackbone(num_aux, aux_input_size, in_plane=aux_in_plane, num_block=num_block, activation=backbone_act)
         else:
             raise NotImplementedError("Unknown backbone!")
 
@@ -904,7 +913,7 @@ class BuildingNetMTL_aux(nn.Module):
 
 
 # ************************* CNN instances using ResNet as backbones *************************
-def model_ResNet(input_channels: int, input_size: int, in_plane: int, num_block: int, log_scale=False, activation="relu", cuda_used=False, **kwargs) -> BuildingNet:
+def model_ResNet(input_channels: int, input_size: int, in_plane: int, num_block: int, log_scale=False, activation="relu", backbone_act="relu", cuda_used=False, **kwargs) -> BuildingNet:
     """Prepare ResNet-STL for 3D building information extraction.
 
     Parameters
@@ -924,6 +933,9 @@ def model_ResNet(input_channels: int, input_size: int, in_plane: int, num_block:
     activation : str
         Activation function for model output.
         It can be chosen from: `relu`, `sigmoid`. The default is `relu`.
+    backbone_act : str
+        Activation function for the backbone part of model.
+        It can be chosen from: `relu`, `sigmoid`, `tanh`, `gelu`, `swish`. The default is `relu`.
     cuda_used : boolean
         A flag which controls whether CUDA is used for inference.
         The default is `False`.
@@ -935,14 +947,15 @@ def model_ResNet(input_channels: int, input_size: int, in_plane: int, num_block:
         trained_record = None
 
     model = BuildingNet(input_channels=input_channels, input_size=input_size, backbone="ResNet", in_plane=in_plane,
-                        num_block=num_block, log_scale=log_scale, activation=activation, cuda_used=cuda_used, trained_record=trained_record)
+                        num_block=num_block, log_scale=log_scale, activation=activation, backbone_act=backbone_act,
+                        cuda_used=cuda_used, trained_record=trained_record)
     total_num = sum(p.numel() for p in model.parameters())
     trainable_num = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print("Total parameter of ResNet: ", total_num, " Trainable parameter of ResNet: ", trainable_num)
     return model
 
 
-def model_ResNet_aux(input_channels: int, input_size: int, aux_input_size: int, in_plane: int, num_block: int, num_aux=1, log_scale=False, activation="relu", cuda_used=False, **kwargs) -> BuildingNet_aux:
+def model_ResNet_aux(input_channels: int, input_size: int, aux_input_size: int, in_plane: int, num_block: int, num_aux=1, log_scale=False, activation="relu", backbone_act="relu", cuda_used=False, **kwargs) -> BuildingNet_aux:
     """Prepare ResNet-STL using auxiliary input information for 3D building information extraction.
 
     Parameters
@@ -967,6 +980,9 @@ def model_ResNet_aux(input_channels: int, input_size: int, aux_input_size: int, 
     activation : str
         Activation function for model output.
         It can be chosen from: `relu`, `sigmoid`. The default is `relu`.
+    backbone_act : str
+        Activation function for the backbone part of model.
+        It can be chosen from: `relu`, `sigmoid`, `tanh`, `gelu`, `swish`. The default is `relu`.
     cuda_used : boolean
         A flag which controls whether CUDA is used for inference.
         The default is `False`.
@@ -978,7 +994,7 @@ def model_ResNet_aux(input_channels: int, input_size: int, aux_input_size: int, 
         trained_record = None
 
     model = BuildingNet_aux(input_channels=input_channels, input_size=input_size, aux_input_size=aux_input_size, backbone="ResNet", in_plane=in_plane,
-                                num_aux=num_aux, num_block=num_block, log_scale=log_scale, activation=activation, 
+                                num_aux=num_aux, num_block=num_block, log_scale=log_scale, activation=activation, backbone_act=backbone_act,
                                 cuda_used=cuda_used, trained_record=trained_record)
     total_num = sum(p.numel() for p in model.parameters())
     trainable_num = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -986,7 +1002,7 @@ def model_ResNet_aux(input_channels: int, input_size: int, aux_input_size: int, 
     return model
 
 
-def model_ResNetMTL(input_channels: int, input_size: int, in_plane: int, num_block: int, crossed=False, log_scale=False, cuda_used=False, **kwargs) -> BuildingNetMTL:
+def model_ResNetMTL(input_channels: int, input_size: int, in_plane: int, num_block: int, crossed=False, log_scale=False, backbone_act="relu", cuda_used=False, **kwargs) -> BuildingNetMTL:
     """Prepare ResNet-MTL using auxiliary input information for 3D building information extraction.
 
     Parameters
@@ -1006,6 +1022,9 @@ def model_ResNetMTL(input_channels: int, input_size: int, in_plane: int, num_blo
     log_scale : boolean
         A flag which controls whether log-transformation is used for output.
         The default is `False`.
+    backbone_act : str
+        Activation function for the backbone part of model.
+        It can be chosen from: `relu`, `sigmoid`, `tanh`, `gelu`, `swish`. The default is `relu`.
     cuda_used : boolean
         A flag which controls whether CUDA is used for inference.
         The default is `False`.
@@ -1017,7 +1036,7 @@ def model_ResNetMTL(input_channels: int, input_size: int, in_plane: int, num_blo
         trained_record = None
 
     model = BuildingNetMTL(input_channels=input_channels, input_size=input_size, backbone="ResNet", in_plane=in_plane,
-                           num_block=num_block, crossed=crossed, log_scale=log_scale,
+                           num_block=num_block, crossed=crossed, log_scale=log_scale, backbone_act=backbone_act,
                            cuda_used=cuda_used, trained_record=trained_record)
     total_num = sum(p.numel() for p in model.parameters())
     trainable_num = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -1025,7 +1044,7 @@ def model_ResNetMTL(input_channels: int, input_size: int, in_plane: int, num_blo
     return model
 
 
-def model_ResNetMTL_aux(input_channels: int, input_size: int, aux_input_size: int, in_plane: int, num_block: int, num_aux=1, crossed=False, log_scale=False, cuda_used=False, **kwargs) -> BuildingNetMTL_aux:
+def model_ResNetMTL_aux(input_channels: int, input_size: int, aux_input_size: int, in_plane: int, num_block: int, num_aux=1, crossed=False, log_scale=False, backbone_act="relu", cuda_used=False, **kwargs) -> BuildingNetMTL_aux:
     """Prepare ResNet-MTL using auxiliary input information for 3D building information extraction.
 
     Parameters
@@ -1050,6 +1069,9 @@ def model_ResNetMTL_aux(input_channels: int, input_size: int, aux_input_size: in
     log_scale : boolean
         A flag which controls whether log-transformation is used for output.
         The default is `False`.
+    backbone_act : str
+        Activation function for the backbone part of model.
+        It can be chosen from: `relu`, `sigmoid`, `tanh`, `gelu`, `swish`. The default is `relu`.
     cuda_used : boolean
         A flag which controls whether CUDA is used for inference.
         The default is `False`.
@@ -1061,7 +1083,7 @@ def model_ResNetMTL_aux(input_channels: int, input_size: int, aux_input_size: in
         trained_record = None
 
     model = BuildingNetMTL_aux(input_channels=input_channels, input_size=input_size, aux_input_size=aux_input_size, backbone="ResNet", in_plane=in_plane,
-                                    num_aux=num_aux, num_block=num_block, crossed=crossed, log_scale=log_scale,
+                                    num_aux=num_aux, num_block=num_block, crossed=crossed, log_scale=log_scale, backbone_act=backbone_act,
                                     cuda_used=cuda_used, trained_record=trained_record)
     total_num = sum(p.numel() for p in model.parameters())
     trainable_num = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -1070,7 +1092,7 @@ def model_ResNetMTL_aux(input_channels: int, input_size: int, aux_input_size: in
 
 
 # ************************* CNN instances using SENet as backbones *************************
-def model_SEResNet(input_channels: int, input_size: int, in_plane: int, num_block: int, log_scale=False, activation="relu", cuda_used=False, **kwargs) -> BuildingNet:
+def model_SEResNet(input_channels: int, input_size: int, in_plane: int, num_block: int, log_scale=False, activation="relu", backbone_act="relu", cuda_used=False, **kwargs) -> BuildingNet:
     """Prepare SENet-STL for 3D building information extraction.
 
     Parameters
@@ -1090,6 +1112,9 @@ def model_SEResNet(input_channels: int, input_size: int, in_plane: int, num_bloc
     activation : str
         Activation function for model output.
         It can be chosen from: `relu`, `sigmoid`. The default is `relu`.
+    backbone_act : str
+        Activation function for the backbone part of model.
+        It can be chosen from: `relu`, `sigmoid`, `tanh`, `gelu`, `swish`. The default is `relu`.
     cuda_used : boolean
         A flag which controls whether CUDA is used for inference.
         The default is `False`.
@@ -1101,14 +1126,15 @@ def model_SEResNet(input_channels: int, input_size: int, in_plane: int, num_bloc
         trained_record = None
 
     model = BuildingNet(input_channels=input_channels, input_size=input_size, backbone="SENet", in_plane=in_plane,
-                        num_block=num_block, log_scale=log_scale, activation=activation, cuda_used=cuda_used, trained_record=trained_record)
+                        num_block=num_block, log_scale=log_scale, activation=activation, backbone_act=backbone_act,
+                        cuda_used=cuda_used, trained_record=trained_record)
     total_num = sum(p.numel() for p in model.parameters())
     trainable_num = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print("Total parameter of SEResNet: ", total_num, " Trainable parameter of SEResNet: ", trainable_num)
     return model
 
 
-def model_SEResNet_aux(input_channels: int, input_size: int, aux_input_size: int, in_plane: int, num_block: int, num_aux=1, log_scale=False, activation="relu", cuda_used=False, **kwargs) -> BuildingNet_aux:
+def model_SEResNet_aux(input_channels: int, input_size: int, aux_input_size: int, in_plane: int, num_block: int, num_aux=1, log_scale=False, activation="relu", backbone_act="relu", cuda_used=False, **kwargs) -> BuildingNet_aux:
     """Prepare SENet-STL using auxiliary input information for 3D building information extraction.
 
     Parameters
@@ -1133,6 +1159,9 @@ def model_SEResNet_aux(input_channels: int, input_size: int, aux_input_size: int
     activation : str
         Activation function for model output.
         It can be chosen from: `relu`, `sigmoid`. The default is `relu`.
+    backbone_act : str
+        Activation function for the backbone part of model.
+        It can be chosen from: `relu`, `sigmoid`, `tanh`, `gelu`, `swish`. The default is `relu`.
     cuda_used : boolean
         A flag which controls whether CUDA is used for inference.
         The default is `False`.
@@ -1144,7 +1173,7 @@ def model_SEResNet_aux(input_channels: int, input_size: int, aux_input_size: int
         trained_record = None
 
     model = BuildingNet_aux(input_channels=input_channels, input_size=input_size, aux_input_size=aux_input_size, backbone="SENet", in_plane=in_plane,
-                                num_aux=num_aux, num_block=num_block, log_scale=log_scale, activation=activation, 
+                                num_aux=num_aux, num_block=num_block, log_scale=log_scale, activation=activation, backbone_act=backbone_act,
                                 cuda_used=cuda_used, trained_record=trained_record)
     total_num = sum(p.numel() for p in model.parameters())
     trainable_num = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -1152,7 +1181,7 @@ def model_SEResNet_aux(input_channels: int, input_size: int, aux_input_size: int
     return model
 
 
-def model_SEResNetMTL(input_channels: int, input_size: int, in_plane: int, num_block: int, crossed=False, log_scale=False, cuda_used=False, **kwargs) -> BuildingNetMTL:
+def model_SEResNetMTL(input_channels: int, input_size: int, in_plane: int, num_block: int, crossed=False, log_scale=False, backbone_act="relu", cuda_used=False, **kwargs) -> BuildingNetMTL:
     """Prepare SENet-MTL using auxiliary input information for 3D building information extraction.
 
     Parameters
@@ -1172,6 +1201,9 @@ def model_SEResNetMTL(input_channels: int, input_size: int, in_plane: int, num_b
     log_scale : boolean
         A flag which controls whether log-transformation is used for output.
         The default is `False`.
+    backbone_act : str
+        Activation function for the backbone part of model.
+        It can be chosen from: `relu`, `sigmoid`, `tanh`, `gelu`, `swish`. The default is `relu`.
     cuda_used : boolean
         A flag which controls whether CUDA is used for inference.
         The default is `False`.
@@ -1183,7 +1215,7 @@ def model_SEResNetMTL(input_channels: int, input_size: int, in_plane: int, num_b
         trained_record = None
 
     model = BuildingNetMTL(input_channels=input_channels, input_size=input_size, backbone="SENet", in_plane=in_plane,
-                           num_block=num_block, crossed=crossed, log_scale=log_scale,
+                           num_block=num_block, crossed=crossed, log_scale=log_scale, backbone_act=backbone_act,
                            cuda_used=cuda_used, trained_record=trained_record)
     total_num = sum(p.numel() for p in model.parameters())
     trainable_num = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -1191,7 +1223,7 @@ def model_SEResNetMTL(input_channels: int, input_size: int, in_plane: int, num_b
     return model
 
 
-def model_SEResNetMTL_aux(input_channels: int, input_size: int, aux_input_size: int, in_plane: int, num_block: int, num_aux=1, crossed=False, log_scale=False, cuda_used=False, **kwargs) -> BuildingNetMTL_aux:
+def model_SEResNetMTL_aux(input_channels: int, input_size: int, aux_input_size: int, in_plane: int, num_block: int, num_aux=1, crossed=False, log_scale=False, backbone_act="relu", cuda_used=False, **kwargs) -> BuildingNetMTL_aux:
     """Prepare SENet-MTL using auxiliary input information for 3D building information extraction.
 
     Parameters
@@ -1216,6 +1248,9 @@ def model_SEResNetMTL_aux(input_channels: int, input_size: int, aux_input_size: 
     log_scale : boolean
         A flag which controls whether log-transformation is used for output.
         The default is `False`.
+    backbone_act : str
+        Activation function for the backbone part of model.
+        It can be chosen from: `relu`, `sigmoid`, `tanh`, `gelu`, `swish`. The default is `relu`.
     cuda_used : boolean
         A flag which controls whether CUDA is used for inference.
         The default is `False`.
@@ -1227,7 +1262,7 @@ def model_SEResNetMTL_aux(input_channels: int, input_size: int, aux_input_size: 
         trained_record = None
 
     model = BuildingNetMTL_aux(input_channels=input_channels, input_size=input_size, aux_input_size=aux_input_size, backbone="SENet", in_plane=in_plane,
-                                    num_aux=num_aux, num_block=num_block, crossed=crossed, log_scale=log_scale,
+                                    num_aux=num_aux, num_block=num_block, crossed=crossed, log_scale=log_scale, backbone_act=backbone_act,
                                     cuda_used=cuda_used, trained_record=trained_record)
     total_num = sum(p.numel() for p in model.parameters())
     trainable_num = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -1236,7 +1271,7 @@ def model_SEResNetMTL_aux(input_channels: int, input_size: int, aux_input_size: 
 
 
 # ************************* CNN instances using CBAM as backbones *************************
-def model_CBAMResNet(input_channels: int, input_size: int, in_plane: int, num_block: int, log_scale=False, activation="relu", cuda_used=False, **kwargs) -> BuildingNet:
+def model_CBAMResNet(input_channels: int, input_size: int, in_plane: int, num_block: int, log_scale=False, activation="relu", backbone_act="relu", cuda_used=False, **kwargs) -> BuildingNet:
     """Prepare CBAM-STL for 3D building information extraction.
 
     Parameters
@@ -1256,6 +1291,9 @@ def model_CBAMResNet(input_channels: int, input_size: int, in_plane: int, num_bl
     activation : str
         Activation function for model output.
         It can be chosen from: `relu`, `sigmoid`. The default is `relu`.
+    backbone_act : str
+        Activation function for the backbone part of model.
+        It can be chosen from: `relu`, `sigmoid`, `tanh`, `gelu`, `swish`. The default is `relu`.
     cuda_used : boolean
         A flag which controls whether CUDA is used for inference.
         The default is `False`.
@@ -1267,14 +1305,15 @@ def model_CBAMResNet(input_channels: int, input_size: int, in_plane: int, num_bl
         trained_record = None
 
     model = BuildingNet(input_channels=input_channels, input_size=input_size, backbone="CBAM", in_plane=in_plane,
-                        num_block=num_block, log_scale=log_scale, activation=activation, cuda_used=cuda_used, trained_record=trained_record)
+                        num_block=num_block, log_scale=log_scale, activation=activation, backbone_act=backbone_act,
+                        cuda_used=cuda_used, trained_record=trained_record)
     total_num = sum(p.numel() for p in model.parameters())
     trainable_num = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print("Total parameter of CBAMResNet: ", total_num, " Trainable parameter of CBAMResNet: ", trainable_num)
     return model
 
 
-def model_CBAMResNet_aux(input_channels: int, input_size: int, aux_input_size: int, in_plane: int, num_block: int, num_aux=1, log_scale=False, activation="relu", cuda_used=False, **kwargs) -> BuildingNet_aux:
+def model_CBAMResNet_aux(input_channels: int, input_size: int, aux_input_size: int, in_plane: int, num_block: int, num_aux=1, log_scale=False, activation="relu", backbone_act="relu", cuda_used=False, **kwargs) -> BuildingNet_aux:
     """Prepare CBAM-STL using auxiliary input information for 3D building information extraction.
 
     Parameters
@@ -1299,6 +1338,9 @@ def model_CBAMResNet_aux(input_channels: int, input_size: int, aux_input_size: i
     activation : str
         Activation function for model output.
         It can be chosen from: `relu`, `sigmoid`. The default is `relu`.
+    backbone_act : str
+        Activation function for the backbone part of model.
+        It can be chosen from: `relu`, `sigmoid`, `tanh`, `gelu`, `swish`. The default is `relu`.
     cuda_used : boolean
         A flag which controls whether CUDA is used for inference.
         The default is `False`.
@@ -1310,7 +1352,7 @@ def model_CBAMResNet_aux(input_channels: int, input_size: int, aux_input_size: i
         trained_record = None
 
     model = BuildingNet_aux(input_channels=input_channels, input_size=input_size, aux_input_size=aux_input_size, backbone="CBAM", in_plane=in_plane,
-                                num_aux=num_aux, num_block=num_block, log_scale=log_scale, activation=activation, 
+                                num_aux=num_aux, num_block=num_block, log_scale=log_scale, activation=activation, backbone_act=backbone_act,
                                 cuda_used=cuda_used, trained_record=trained_record)
     total_num = sum(p.numel() for p in model.parameters())
     trainable_num = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -1318,7 +1360,7 @@ def model_CBAMResNet_aux(input_channels: int, input_size: int, aux_input_size: i
     return model
 
 
-def model_CBAMResNetMTL(input_channels: int, input_size: int, in_plane: int, num_block: int, crossed=False, log_scale=False, cuda_used=True, **kwargs) -> BuildingNetMTL:
+def model_CBAMResNetMTL(input_channels: int, input_size: int, in_plane: int, num_block: int, crossed=False, log_scale=False, backbone_act="relu", cuda_used=True, **kwargs) -> BuildingNetMTL:
     """Prepare CBAM-MTL using auxiliary input information for 3D building information extraction.
 
     Parameters
@@ -1338,6 +1380,9 @@ def model_CBAMResNetMTL(input_channels: int, input_size: int, in_plane: int, num
     log_scale : boolean
         A flag which controls whether log-transformation is used for output.
         The default is `False`.
+    backbone_act : str
+        Activation function for the backbone part of model.
+        It can be chosen from: `relu`, `sigmoid`, `tanh`, `gelu`, `swish`. The default is `relu`.
     cuda_used : boolean
         A flag which controls whether CUDA is used for inference.
         The default is `False`.
@@ -1349,7 +1394,7 @@ def model_CBAMResNetMTL(input_channels: int, input_size: int, in_plane: int, num
         trained_record = None
 
     model = BuildingNetMTL(input_channels=input_channels, input_size=input_size, backbone="CBAM", in_plane=in_plane,
-                           num_block=num_block, crossed=crossed, log_scale=log_scale,
+                           num_block=num_block, crossed=crossed, log_scale=log_scale, backbone_act=backbone_act,
                            cuda_used=cuda_used, trained_record=trained_record)
     total_num = sum(p.numel() for p in model.parameters())
     trainable_num = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -1357,7 +1402,7 @@ def model_CBAMResNetMTL(input_channels: int, input_size: int, in_plane: int, num
     return model
 
 
-def model_CBAMResNetMTL_aux(input_channels: int, input_size: int, aux_input_size: int, in_plane: int, num_block: int, num_aux=1, crossed=False, log_scale=False, cuda_used=True, **kwargs) -> BuildingNetMTL_aux:
+def model_CBAMResNetMTL_aux(input_channels: int, input_size: int, aux_input_size: int, in_plane: int, num_block: int, num_aux=1, crossed=False, log_scale=False, backbone_act="relu", cuda_used=True, **kwargs) -> BuildingNetMTL_aux:
     """Prepare CBAM-MTL using auxiliary input information for 3D building information extraction.
 
     Parameters
@@ -1382,6 +1427,9 @@ def model_CBAMResNetMTL_aux(input_channels: int, input_size: int, aux_input_size
     log_scale : boolean
         A flag which controls whether log-transformation is used for output.
         The default is `False`.
+    backbone_act : str
+        Activation function for the backbone part of model.
+        It can be chosen from: `relu`, `sigmoid`, `tanh`, `gelu`, `swish`. The default is `relu`.
     cuda_used : boolean
         A flag which controls whether CUDA is used for inference.
         The default is `False`.
@@ -1393,7 +1441,7 @@ def model_CBAMResNetMTL_aux(input_channels: int, input_size: int, aux_input_size
         trained_record = None
 
     model = BuildingNetMTL_aux(input_channels=input_channels, input_size=input_size, aux_input_size=aux_input_size, backbone="CBAM", in_plane=in_plane,
-                                    num_aux=num_aux, num_block=num_block, crossed=crossed, log_scale=log_scale,
+                                    num_aux=num_aux, num_block=num_block, crossed=crossed, log_scale=log_scale, backbone_act=backbone_act,
                                     cuda_used=cuda_used, trained_record=trained_record)
     total_num = sum(p.numel() for p in model.parameters())
     trainable_num = sum(p.numel() for p in model.parameters() if p.requires_grad)

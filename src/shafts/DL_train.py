@@ -203,31 +203,37 @@ class Trainer(object):
             if self.aux_namelist is None:
                 self.model = model_ResNet(in_plane=in_plane, input_channels=6, input_size=args.input_size,
                                             num_block=num_block, log_scale=args.log_scale, activation=activation,
+                                            backbone_act=self.args.backbone_activation,
                                             cuda_used=self.args.cuda, trained_record=args.trained_record)
             else:
                 self.model = model_ResNet_aux(in_plane=in_plane, input_channels=6, input_size=args.input_size,
                                                 aux_input_size=aux_size, num_aux=len(self.aux_namelist),
                                                 num_block=num_block, log_scale=args.log_scale, activation=activation,
+                                                backbone_act=self.args.backbone_activation,
                                                 cuda_used=self.args.cuda, trained_record=args.trained_record)
         elif args.model == "SEResNet18":
             if self.aux_namelist is None:
                 self.model = model_SEResNet(in_plane=in_plane, input_channels=6, input_size=args.input_size,
                                             num_block=num_block, log_scale=args.log_scale, activation=activation,
+                                            backbone_act=self.args.backbone_activation,
                                             cuda_used=self.args.cuda, trained_record=args.trained_record)
             else:
                 self.model = model_SEResNet_aux(in_plane=in_plane, input_channels=6, input_size=args.input_size,
                                                 aux_input_size=aux_size, num_aux=len(self.aux_namelist),
                                                 num_block=num_block, log_scale=args.log_scale, activation=activation,
+                                                backbone_act=self.args.backbone_activation,
                                                 cuda_used=self.args.cuda, trained_record=args.trained_record)
         elif args.model == "CBAMResNet18":
             if self.aux_namelist is None:
                 self.model = model_CBAMResNet(in_plane=in_plane, input_channels=6, input_size=args.input_size,
                                                 num_block=num_block, log_scale=args.log_scale, activation=activation,
+                                                backbone_act=self.args.backbone_activation,
                                                 cuda_used=self.args.cuda, trained_record=args.trained_record)
             else:
                 self.model = model_CBAMResNet_aux(in_plane=in_plane, input_channels=6, input_size=args.input_size,
                                                     aux_input_size=aux_size, num_aux=len(self.aux_namelist),
                                                     num_block=num_block, log_scale=args.log_scale, activation=activation,
+                                                    backbone_act=self.args.backbone_activation,
                                                     cuda_used=self.args.cuda, trained_record=args.trained_record)
         else:
             raise NotImplementedError
@@ -422,31 +428,37 @@ class TrainerMTL(object):
             if self.aux_namelist is None:
                 self.model = model_ResNetMTL(in_plane=in_plane, input_channels=6, input_size=args.input_size,
                                                 num_block=num_block, log_scale=args.log_scale, crossed=args.MTL_crossed,
+                                                backbone_act=self.args.backbone_activation,
                                                 cuda_used=self.args.cuda, trained_record=args.trained_record)
             else:
                 self.model = model_ResNetMTL_aux(in_plane=in_plane, input_channels=6, input_size=args.input_size,
                                                     aux_input_size=aux_size, num_aux=len(self.aux_namelist),
                                                     num_block=num_block, log_scale=args.log_scale, crossed=args.MTL_crossed,
+                                                    backbone_act=self.args.backbone_activation,
                                                     cuda_used=self.args.cuda, trained_record=args.trained_record)
         elif args.model == "SEResNet18":
             if self.aux_namelist is None:
                 self.model = model_SEResNetMTL(in_plane=in_plane, input_channels=6, input_size=args.input_size,
                                                 num_block=num_block, log_scale=args.log_scale, crossed=args.MTL_crossed,
+                                                backbone_act=self.args.backbone_activation,
                                                 cuda_used=self.args.cuda, trained_record=args.trained_record)
             else:
                 self.model = model_SEResNetMTL_aux(in_plane=in_plane, input_channels=6, input_size=args.input_size,
                                                     aux_input_size=aux_size, num_aux=len(self.aux_namelist),
                                                     num_block=num_block, log_scale=args.log_scale, crossed=args.MTL_crossed,
+                                                    backbone_act=self.args.backbone_activation,
                                                     cuda_used=self.args.cuda, trained_record=args.trained_record)
         elif args.model == "CBAMResNet18":
             if self.aux_namelist is None:
                 self.model = model_CBAMResNetMTL(in_plane=in_plane, input_channels=6, input_size=args.input_size,
                                                     num_block=num_block, log_scale=args.log_scale, crossed=args.MTL_crossed,
+                                                    backbone_act=self.args.backbone_activation,
                                                     cuda_used=self.args.cuda, trained_record=args.trained_record)
             else:
                 self.model = model_CBAMResNetMTL_aux(in_plane=in_plane, input_channels=6, input_size=args.input_size,
                                                         aux_input_size=aux_size, num_aux=len(self.aux_namelist),
                                                         num_block=num_block, log_scale=args.log_scale, crossed=args.MTL_crossed,
+                                                        backbone_act=self.args.backbone_activation,
                                                         cuda_used=self.args.cuda, trained_record=args.trained_record)
         else:
             raise NotImplementedError
@@ -841,6 +853,8 @@ if __name__ == "__main__":
     parser.add_argument("--model", type=str, default="ResNet18", choices=["ResNet18", "SEResNet18", "CBAMResNet18"],
                         help="Deep Neural Networks model for building information extraction (default: ResNet18)")
     parser.add_argument("--trained_record", type=str, default=None, help="pretrained weights for CNN initialization")
+    parser.add_argument("--backbone_activation", type=str, default="relu", 
+                        choices=["relu", "gelu", "swish"], help="activation function for the backbone part of model")
     # ---[2] loss function
     parser.add_argument("--loss_type", type=str, default="MSE", choices=["MSE", "Huber", "AdaptiveHuber"],
                         help="loss func (default: MSE)")
