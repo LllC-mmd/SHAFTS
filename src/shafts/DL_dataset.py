@@ -1,5 +1,6 @@
 import os
 from re import S
+import numpy.random as nrand
 import pyarrow as pa
 import h5py
 import lmdb
@@ -40,7 +41,9 @@ gray_scale_data_transforms = {
     ]),
 }
 
-flip_transform = album.Flip(p=0.5)
+# flip_transform = album.Flip(p=0.5)
+p_filp = 0.5
+flip_dir_set = [-1, 0, 1]
 tensor_transform = transforms.ToTensor()
 clahe_transform = album.CLAHE(p=1.0)
 
@@ -240,7 +243,11 @@ class PatchDatasetFromLMDB(Dataset):
                 s2_nir_patch = gray_scale_data_transforms["train"](image=s2_nir_patch.astype(np.uint8))["image"]
                 patch = np.concatenate([s1_vv_patch, s1_vh_patch, s2_rgb_patch, s2_nir_patch], axis=-1)
                 # ---------flip the input patch randomly
-                patch = flip_transform(image=patch)["image"]
+                # patch = flip_transform(image=patch)["image"]
+                flag_flip = (nrand.random() < p_filp)
+                if flag_flip:
+                    flip_dir = nrand.choice(a=flip_dir_set, size=1)[0]
+                    patch = cv2.flip(patch, flipCode=flip_dir)
             elif self.mode == "valid":
                 s1_vv_patch = gray_scale_data_transforms["valid"](image=s1_vv_coef_patch.astype(np.uint8))["image"]
                 s1_vh_patch = gray_scale_data_transforms["valid"](image=s1_vh_coef_patch.astype(np.uint8))["image"]
@@ -269,8 +276,12 @@ class PatchDatasetFromLMDB(Dataset):
             aux_feat = []
             for k in self.aux_namelist:
                 aux_val =  dta_unpacked[self.aux_id_ref[k]]
-                aux_feat.append(tensor_transform(aux_val).type(torch.FloatTensor))
-            aux_feat = torch.cat(aux_feat, dim=0)
+                aux_feat.append(aux_val)
+            aux_feat = np.concatenate(aux_feat, axis=-1)
+            if self.mode == "train":
+                if flag_flip:
+                    aux_feat = cv2.flip(aux_feat, flipCode=flip_dir)
+            aux_feat = tensor_transform(aux_feat).type(torch.FloatTensor)
             sample["aux_feature"] = aux_feat
 
         return sample
@@ -361,7 +372,11 @@ class PatchDatasetFromLMDB_MTL(Dataset):
                 s2_nir_patch = gray_scale_data_transforms["train"](image=s2_nir_patch.astype(np.uint8))["image"]
                 patch = np.concatenate([s1_vv_patch, s1_vh_patch, s2_rgb_patch, s2_nir_patch], axis=-1)
                 # ---------flip the input patch randomly
-                patch = flip_transform(image=patch)["image"]
+                # patch = flip_transform(image=patch)["image"]
+                flag_flip = (nrand.random() < p_filp)
+                if flag_flip:
+                    flip_dir = nrand.choice(a=flip_dir_set, size=1)[0]
+                    patch = cv2.flip(patch, flipCode=flip_dir)
             elif self.mode == "valid":
                 s1_vv_patch = gray_scale_data_transforms["valid"](image=s1_vv_coef_patch.astype(np.uint8))["image"]
                 s1_vh_patch = gray_scale_data_transforms["valid"](image=s1_vh_coef_patch.astype(np.uint8))["image"]
@@ -392,8 +407,12 @@ class PatchDatasetFromLMDB_MTL(Dataset):
             aux_feat = []
             for k in self.aux_namelist:
                 aux_val =  dta_unpacked[self.aux_id_ref[k]]
-                aux_feat.append(tensor_transform(aux_val).type(torch.FloatTensor))
-            aux_feat = torch.cat(aux_feat, dim=0)
+                aux_feat.append(aux_val)
+            aux_feat = np.concatenate(aux_feat, axis=-1)
+            if self.mode == "train":
+                if flag_flip:
+                    aux_feat = cv2.flip(aux_feat, flipCode=flip_dir)
+            aux_feat = tensor_transform(aux_feat).type(torch.FloatTensor)
             sample["aux_feature"] = aux_feat
 
         return sample
@@ -497,7 +516,11 @@ class PatchDatasetFromHDF5(Dataset):
                 s2_nir_patch = gray_scale_data_transforms["train"](image=s2_nir_patch.astype(np.uint8))["image"]
                 patch = np.concatenate([s1_vv_patch, s1_vh_patch, s2_rgb_patch, s2_nir_patch], axis=-1)
                 # ---------flip the input patch randomly
-                patch = flip_transform(image=patch)["image"]
+                # patch = flip_transform(image=patch)["image"]
+                flag_flip = (nrand.random() < p_filp)
+                if flag_flip:
+                    flip_dir = nrand.choice(a=flip_dir_set, size=1)[0]
+                    patch = cv2.flip(patch, flipCode=flip_dir)
             elif self.mode == "valid":
                 s1_vv_patch = gray_scale_data_transforms["valid"](image=s1_vv_coef_patch.astype(np.uint8))["image"]
                 s1_vh_patch = gray_scale_data_transforms["valid"](image=s1_vh_coef_patch.astype(np.uint8))["image"]
@@ -527,8 +550,12 @@ class PatchDatasetFromHDF5(Dataset):
             for k in self.aux_namelist:
                 aux_patch = self.db[group_name][k][shift]
                 aux_patch = np.transpose(aux_patch, (1, 2, 0))
-                aux_feat.append(tensor_transform(aux_patch).type(torch.FloatTensor))
-            aux_feat = torch.cat(aux_feat, dim=0)
+                aux_feat.append(aux_patch)
+            aux_feat = np.concatenate(aux_feat, axis=-1)
+            if self.mode == "train":
+                if flag_flip:
+                    aux_feat = cv2.flip(aux_feat, flipCode=flip_dir)
+            aux_feat = tensor_transform(aux_feat).type(torch.FloatTensor)
             sample["aux_feature"] = aux_feat
 
         return sample
@@ -638,7 +665,11 @@ class PatchDatasetFromHDF5_MTL(Dataset):
                 s2_nir_patch = gray_scale_data_transforms["train"](image=s2_nir_patch.astype(np.uint8))["image"]
                 patch = np.concatenate([s1_vv_patch, s1_vh_patch, s2_rgb_patch, s2_nir_patch], axis=-1)
                 # ---------flip the input patch randomly
-                patch = flip_transform(image=patch)["image"]
+                # patch = flip_transform(image=patch)["image"]
+                flag_flip = (nrand.random() < p_filp)
+                if flag_flip:
+                    flip_dir = nrand.choice(a=flip_dir_set, size=1)[0]
+                    patch = cv2.flip(patch, flipCode=flip_dir)
             elif self.mode == "valid":
                 s1_vv_patch = gray_scale_data_transforms["valid"](image=s1_vv_coef_patch.astype(np.uint8))["image"]
                 s1_vh_patch = gray_scale_data_transforms["valid"](image=s1_vh_coef_patch.astype(np.uint8))["image"]
@@ -669,8 +700,12 @@ class PatchDatasetFromHDF5_MTL(Dataset):
             for k in self.aux_namelist:
                 aux_patch = self.db[group_name][k][shift]
                 aux_patch = np.transpose(aux_patch, (1, 2, 0))
-                aux_feat.append(tensor_transform(aux_patch).type(torch.FloatTensor))
-            aux_feat = torch.cat(aux_feat, dim=0)
+                aux_feat.append(aux_patch)
+            aux_feat = np.concatenate(aux_feat, axis=-1)
+            if self.mode == "train":
+                if flag_flip:
+                    aux_feat = cv2.flip(aux_feat, flipCode=flip_dir)
+            aux_feat = tensor_transform(aux_feat).type(torch.FloatTensor)
             sample["aux_feature"] = aux_feat
 
         return sample
