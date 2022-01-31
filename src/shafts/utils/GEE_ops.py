@@ -150,7 +150,7 @@ def srtm_download(sample_csv: str, dst_dir: str, path_prefix=None, padding=None,
         print(df.loc[row_id]["City"], "Start.")
 
 
-def sentinel1_download_by_extent(lon_min: float, lat_min: float, lon_max: float, lat_max: float, year: int, dst_dir: str, file_name: str, padding=0.04, dst="Drive"):
+def sentinel1_download_by_extent(lon_min: float, lat_min: float, lon_max: float, lat_max: float, year: int, dst_dir: str, file_name: str, year_percentile=50, padding=0.04, dst="Drive"):
     """Download a Sentinel-1's image from Google Earth Engine based on the lon-lat extent.
 
     Parameters
@@ -170,6 +170,9 @@ def sentinel1_download_by_extent(lon_min: float, lat_min: float, lon_max: float,
         Directory on the destination device for saving the output image.
     file_name : str
         Name of the output image.
+    year_percentile : int
+        Temporal aggregation operation for the Sentinel-1's dataset.
+        The default is `50` percentile.
     padding : float
         Padding size outside the target region (in degrees).
         The default is `0.04`.
@@ -216,7 +219,7 @@ def sentinel1_download_by_extent(lon_min: float, lat_min: float, lon_max: float,
     # s1_image = s1_dataset.mean()
     # s1_image = s1_dataset.reduce(ee.Reducer.percentile([75]))
     # s1_image = s1_dataset.reduce(ee.Reducer.percentile([25]))
-    s1_image = s1_dataset.reduce(ee.Reducer.percentile([50]))
+    s1_image = s1_dataset.reduce(ee.Reducer.percentile([year_percentile]))
 
     s1_image = s1_image.clip(city_bd)
 
@@ -244,7 +247,7 @@ def sentinel1_download_by_extent(lon_min: float, lat_min: float, lon_max: float,
     task.start()
 
 
-def sentinel1_download(sample_csv: str, dst_dir: str, path_prefix=None, padding=0.04, target_epsg=4326, dst="Drive"):
+def sentinel1_download(sample_csv: str, dst_dir: str, year_percentile=50, path_prefix=None, padding=0.04, target_epsg=4326, dst="Drive"):
     """Download Sentinel-1's images from Google Earth Engine in a batch way by a .csv file.
 
     Parameters
@@ -257,6 +260,9 @@ def sentinel1_download(sample_csv: str, dst_dir: str, path_prefix=None, padding=
         `Year` stands for the year of Sentinel-1's images to be downloaded.
     dst_dir : str
         Directory on the destination device for saving output images.
+    year_percentile : int
+        Temporal aggregation operation for the Sentinel-1's dataset.
+        The default is `50` percentile.
     path_prefix : str
         Common path prefix for input Shapefile or GeoPackage files.
     padding : float
@@ -309,10 +315,10 @@ def sentinel1_download(sample_csv: str, dst_dir: str, path_prefix=None, padding=
         x_max, y_min = point_right_bottom
         
         file_prefix = df.loc[row_id]["City"] + "_" + str(year)
-        file_name = '{0}_sentinel_1_50pt'.format(file_prefix)
+        file_name = '{0}_sentinel_1_{1}pt'.format(file_prefix, year_percentile)
 
         sentinel1_download_by_extent(lon_min=x_min, lat_min=y_min, lon_max=x_max, lat_max=y_max, year=year, dst_dir=dst_dir,
-                                        file_name=file_name, padding=padding, dst=dst)
+                                        file_name=file_name, year_percentile=year_percentile, padding=padding, dst=dst)
         
         print(df.loc[row_id]["City"], "Start.")
 
@@ -356,7 +362,7 @@ def sentinel2_download_by_extent(lon_min: float, lat_min: float, lon_max: float,
     s2_dataset = s2_dataset.filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
     s2_dataset = s2_dataset.select(["B4", "B3", "B2", "B8"])
     # ---------only keep winter data
-    year = min(2021, max(year, 2017))   # Sentinel-2 availability: from 2017-03 to 2021-12
+    year = min(2021, max(year, 2018))   # Sentinel-2 availability: from 2017-03 to 2021-12
     time_start = datetime.datetime(year=year, month=1, day=1).strftime("%Y-%m-%d")
     time_end = datetime.datetime(year=year, month=12, day=31).strftime("%Y-%m-%d")
     s2_dataset = s2_dataset.filter(ee.Filter.date(time_start, time_end))
@@ -486,6 +492,7 @@ if __name__ == "__main__":
     parser.add_argument('--type', type=str, choices=["Sentinel-1", "Sentinel-2", "SRTM"])
     parser.add_argument('--input_csv', type=str, help="path of input csv file for city boundary and year specification")
     parser.add_argument("--padding", type=float, default=0.04, help="padding size outside the target region")
+    parser.add_argument("--year_percentile", type=int, default=50, help="temporal aggregation operation for the Sentinel-1's dataset")
     parser.add_argument("--destination", type=str, default="Drive", choices=["Drive", "CloudStorage"],
                         help="destination device where data are export")
     parser.add_argument("--dst_dir", type=str, help="directory on the destination device for data storage")
@@ -498,7 +505,7 @@ if __name__ == "__main__":
                       padding=args.padding, dst=args.destination)
     elif args.type == "Sentinel-1":
         sentinel1_download(sample_csv=args.input_csv, dst_dir=args.dst_dir, path_prefix=args.path_prefix,
-                           padding=args.padding, dst=args.destination)
+                           padding=args.padding, year_percentile=args.year_percentile, dst=args.destination)
     elif args.type == "Sentinel-2":
         sentinel2_download(sample_csv=args.input_csv, dst_dir=args.dst_dir, path_prefix=args.path_prefix,
                            padding=args.padding, dst=args.destination)

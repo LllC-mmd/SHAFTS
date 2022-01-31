@@ -8,7 +8,6 @@ Beijing,Beijing_2020/Beijing_2020.shp,2020
 Boston,Boston_2011/Boston_2011.shp,2011
 BoulderCO,BoulderCO_2016/BoulderCO_2016.shp,2016
 Bozeman,Bozeman_2019/Bozeman_2019.shp,2019
-Cambridge,Cambridge_2018/Cambridge_2018.shp,2018
 Centennial,Centennial_2020/Centennial_2020.shp,2020
 Chattanooga,Chattanooga_2017/Chattanooga_2017.shp,2017
 Chicago,Chicago_2015/Chicago_2015.shp,2015
@@ -35,7 +34,6 @@ PrinceGeorge,PrinceGeorge_2019/PrinceGeorge_2019.shp,2019
 Reedsburg,Reedsburg_2018/Reedsburg_2018.shp,2018
 Richardson,Richardson_2020/Richardson_2020.shp,2020
 Roanoke,Roanoke_2020/Roanoke_2020.shp,2020
-SaltLakeCounty,SaltLakeCounty_2020/SaltLakeCounty_2020.shp,2020
 SanFrancisco,SanFrancisco_2010/SanFrancisco_2010.shp,2010
 SantaClara,SantaClara_2015/SantaClara_2015.shp,2015
 Sarasota,Sarasota_2020/Sarasota_2020.shp,2020
@@ -44,3 +42,7 @@ SiouxFalls,SiouxFalls_2020/SiouxFalls_2020.shp,2018
 Westchester,Westchester_2018/Westchester_2018.shp,2018
 Toronto,Toronto_2020/Toronto_2020.shp,2020
 DesMoines,DesMoines_2020/DesMoines_2020.shp,2020
+Brno,Brno_2020/Brno_2020.shp,2020
+BatonRouge,BatonRouge_2021/BatonRouge_2021.shp,2021
+Hayward,Hayward_2021/Hayward_2021.shp,2021
+Cincinnati,Cincinnati_2021/Cincinnati_2021.shp,2021
