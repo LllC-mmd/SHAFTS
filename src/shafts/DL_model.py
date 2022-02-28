@@ -1,6 +1,6 @@
 import os
 import math
-from .DL_module import *
+from DL_module import *
 
 
 # ************************* Backbones *************************
@@ -38,6 +38,10 @@ class ResNetBackbone(nn.Module):
             num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 3)
         elif input_size in [60, 80]:
             # self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=5, stride=2, padding=1, bias=False)
+            self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=7, stride=2, padding=1, bias=False)
+            self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+            num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 3)
+        elif input_size in [40]:
             self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=7, stride=2, padding=1, bias=False)
             self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
             num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 3)
@@ -133,13 +137,17 @@ class SENetBackbone(nn.Module):
         self.basic_act = activation
 
         self.maxpool = None
-        if input_size in [120]:
+        if input_size in [120, 160]:
             # self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=5, stride=2, padding=1, bias=False)
             self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=7, stride=2, padding=1, bias=False)
             self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
             num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 3)
-        elif input_size in [60]:
+        elif input_size in [60, 80]:
             # self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=5, stride=2, padding=1, bias=False)
+            self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=7, stride=2, padding=1, bias=False)
+            self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+            num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 3)
+        elif input_size in [40]:
             self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=7, stride=2, padding=1, bias=False)
             self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
             num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 3)
@@ -235,16 +243,20 @@ class CBAMBackbone(nn.Module):
         self.basic_act = activation
 
         self.maxpool = None
-        if input_size in [120]:
+        if input_size in [120, 160]:
             # self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=3, stride=1, padding=1, bias=False)
-            self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=7, stride=1, padding=1, bias=False)
+            self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=7, stride=2, padding=1, bias=False)
             self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
             num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 3)
-        elif input_size in [60]:
+        elif input_size in [60, 80]:
             # self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=3, stride=1, padding=1, bias=False)
-            self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=7, stride=1, padding=1, bias=False)
+            self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=7, stride=2, padding=1, bias=False)
             self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-            num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 2)
+            num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 3)
+        elif input_size in [40]:
+            self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=7, stride=2, padding=1, bias=False)
+            self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+            num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 3)
         else:
             self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=self.in_plane, kernel_size=3, stride=1, padding=1, bias=False)
             num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 1)
@@ -360,9 +372,9 @@ class BuildingNet(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d(output_size=(1, 1))
         self.relu = nn.ReLU(inplace=True)
 
-        if input_size in [120]:
+        if input_size in [120, 160, 80]:
             num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 3)
-        elif input_size in [60]:
+        elif input_size in [60, 40]:
             num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 2)
         else:
             num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 1)
@@ -501,10 +513,10 @@ class BuildingNet_aux(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d(output_size=(1, 1))
         self.relu = nn.ReLU(inplace=True)
 
-        if input_size in [120]:
+        if input_size in [120, 160, 80]:
             num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 3)
             aux_num_reduce = int(math.floor(math.log(aux_input_size / 2, 2)) - 3)
-        elif input_size in [60]:
+        elif input_size in [60, 40]:
             num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 2)
             aux_num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 2)
         else:
@@ -654,9 +666,9 @@ class BuildingNetMTL(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.sigmoid = nn.Sigmoid()
 
-        if input_size in [120]:
+        if input_size in [120, 160, 80]:
             num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 3)
-        elif input_size in [60]:
+        elif input_size in [60, 40]:
             num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 2)
         else:
             num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 1)
@@ -801,10 +813,10 @@ class BuildingNetMTL_aux(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.sigmoid = nn.Sigmoid()
 
-        if input_size in [120]:
+        if input_size in [120, 160, 80]:
             num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 3)
             aux_num_reduce = int(math.floor(math.log(aux_input_size / 2, 2)) - 3)
-        elif input_size in [60]:
+        elif input_size in [60, 40]:
             num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 2)
             aux_num_reduce = int(math.floor(math.log(input_size / 2, 2)) - 2)
         else:
