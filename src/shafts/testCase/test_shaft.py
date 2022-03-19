@@ -17,7 +17,7 @@ class TestShaft(TestCase):
 
         self.s1_key="sentinel_1"
         self.s2_key="sentinel_2"
-        self.input_size = {100: [15], 250: [30], 500: [60], 1000: [120]}
+        self.input_size = {100: [20], 250: [40], 500: [80], 1000: [160]}
         self.res = {100: 0.0009, 250: 0.00225, 500: 0.0045, 1000: 0.009}
         self.padding = 0.03
         
@@ -26,14 +26,14 @@ class TestShaft(TestCase):
         self.batch_size = 2
 
         self.path_prefix = os.path.join(shafts._path_shaft_module, "dl-models")
-        self.stl_trained_record = {100: os.path.join(self.path_prefix, self.target_var, "check_pt_{0}_100m".format(self.backbone), "experiment_2", "checkpoint.pth.tar"), 
-                                    250: os.path.join(self.path_prefix, self.target_var, "check_pt_{0}_250m".format(self.backbone), "experiment_2", "checkpoint.pth.tar"), 
-                                    500: os.path.join(self.path_prefix, self.target_var, "check_pt_{0}_500m".format(self.backbone), "experiment_2", "checkpoint.pth.tar"), 
-                                    1000: os.path.join(self.path_prefix, self.target_var, "check_pt_{0}_1000m".format(self.backbone), "experiment_2", "checkpoint.pth.tar")}
-        self.mtl_trained_record = {100: os.path.join(self.path_prefix, self.target_var, "check_pt_{0}_100m_MTL".format(self.backbone), "experiment_5", "checkpoint.pth.tar"), 
-                                    250: os.path.join(self.path_prefix, self.target_var, "check_pt_{0}_250m_MTL".format(self.backbone), "experiment_5", "checkpoint.pth.tar"), 
-                                    500: os.path.join(self.path_prefix, self.target_var, "check_pt_{0}_500m_MTL".format(self.backbone), "experiment_5", "checkpoint.pth.tar"), 
-                                    1000: os.path.join(self.path_prefix, self.target_var, "check_pt_{0}_1000m_MTL".format(self.backbone), "experiment_5", "checkpoint.pth.tar")}
+        self.stl_trained_record = {100: os.path.join(self.path_prefix, self.target_var, "check_pt_{0}_100m".format(self.backbone), "experiment_1", "checkpoint.pth.tar"), 
+                                    250: os.path.join(self.path_prefix, self.target_var, "check_pt_{0}_250m".format(self.backbone), "experiment_1", "checkpoint.pth.tar"), 
+                                    500: os.path.join(self.path_prefix, self.target_var, "check_pt_{0}_500m".format(self.backbone), "experiment_1", "checkpoint.pth.tar"), 
+                                    1000: os.path.join(self.path_prefix, self.target_var, "check_pt_{0}_1000m".format(self.backbone), "experiment_1", "checkpoint.pth.tar")}
+        self.mtl_trained_record = {100: os.path.join(self.path_prefix, self.target_var, "check_pt_{0}_100m_MTL".format(self.backbone), "experiment_1", "checkpoint.pth.tar"), 
+                                    250: os.path.join(self.path_prefix, self.target_var, "check_pt_{0}_250m_MTL".format(self.backbone), "experiment_1", "checkpoint.pth.tar"), 
+                                    500: os.path.join(self.path_prefix, self.target_var, "check_pt_{0}_500m_MTL".format(self.backbone), "experiment_1", "checkpoint.pth.tar"), 
+                                    1000: os.path.join(self.path_prefix, self.target_var, "check_pt_{0}_1000m_MTL".format(self.backbone), "experiment_1", "checkpoint.pth.tar")}
 
         self.tmp_dir = "tmp"
         self.cuda_used = torch.cuda.is_available()

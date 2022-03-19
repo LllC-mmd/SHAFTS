@@ -480,10 +480,10 @@ def train_baggingSVR_model(training_dataset_path, test_dataset_path, target_vari
         print("*" * 40)
     else:
         # ------use default BaggingSVR parameters
-        #n_svr = 40
-        n_svr = 50
-        #max_samples = 0.05
-        max_samples = 0.1
+        n_svr = 40
+        #n_svr = 50
+        max_samples = 0.05
+        #max_samples = 0.1
         # ---------BaggingSVR model construction
         baggingSVR_est = BaggingSupportVectorRegressionModel(kernel="rbf", c=1.0, epsilon=0.1, n_jobs=num_cpu,
                                                              n_svr=n_svr, max_samples=max_samples)

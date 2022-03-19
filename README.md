@@ -72,9 +72,9 @@ Pretrained DL models named for building height and footprint prediction can be d
 
 Note that for each target resolution, we can use STL/MTL models with(out) SRTM data to make predictions:
 
-- For STL models, models without SRTM data are stored under `experiment_1` and models with SRTM data are stored under `experiment_2`.
+- For STL models, models with SRTM data are stored under `experiment_1` and models without SRTM data are stored under `experiment_2`.
 
-- For MTL models, models without SRTM data are stored under `experiment_3` and models with SRTM data are stored under `experiment_5`.
+- For MTL models, models with SRTM data are stored under `experiment_1` and models without SRTM data are stored under `experiment_2`.
 Since MTL models can give both building height and footprint predictions, we only offer full sets of MTL models under the directory of models for building height prediction named `height`.
 
 Note that all of models offered in the above link requires SRTM images as one of input variables, though more pretrained DL models during package development are collected for performance comparison.

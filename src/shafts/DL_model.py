@@ -653,11 +653,11 @@ class BuildingNetMTL(nn.Module):
         self.crossed = crossed
         self.cuda_used = cuda_used
         if backbone == "ResNet":
-            self.features = ResNetBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block, backbone_act=backbone_act)
+            self.features = ResNetBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block, activation=backbone_act)
         elif backbone == "SENet":
-            self.features = SENetBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block, backbone_act=backbone_act)
+            self.features = SENetBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block, activation=backbone_act)
         elif backbone == "CBAM":
-            self.features = CBAMBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block, backbone_act=backbone_act)
+            self.features = CBAMBackbone(input_channels, input_size, in_plane=in_plane, num_block=num_block, activation=backbone_act)
         else:
             raise NotImplementedError("Unknown backbone!")
 

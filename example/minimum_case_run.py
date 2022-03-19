@@ -44,7 +44,7 @@ if __name__ == "__main__":
     # ---specify the information of pretrained models
     model = "SEResNet18"            # name of pretrained models
     pretrained_model_path = os.path.join("check_pt_{0}_100m_MTL".format(backbone), "experiment_1", "checkpoint.pth.tar")  # path of files of pretrained models
-    input_patch_size = [15]         # size of input sizes required by pretrained models
+    input_patch_size = [20]         # size of input sizes required by pretrained models
     
     # ---specify the common settings of prediction
     padding = 0.03                                  # padding size outside the target region (it is recommended that padding should not be smaller than 0.03)

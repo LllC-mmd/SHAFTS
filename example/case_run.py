@@ -74,10 +74,10 @@ if __name__ == "__main__":
 
     trained_record = {
         "STL": {
-            100: os.path.join("check_pt_{0}_100m".format(backbone), "experiment_0", "checkpoint.pth.tar"), 
-            250: os.path.join("check_pt_{0}_250m".format(backbone), "experiment_0", "checkpoint.pth.tar"), 
-            500: os.path.join("check_pt_{0}_500m".format(backbone), "experiment_0", "checkpoint.pth.tar"), 
-            1000: os.path.join("check_pt_{0}_1000m".format(backbone), "experiment_0", "checkpoint.pth.tar")
+            100: os.path.join("check_pt_{0}_100m".format(backbone), "experiment_1", "checkpoint.pth.tar"), 
+            250: os.path.join("check_pt_{0}_250m".format(backbone), "experiment_1", "checkpoint.pth.tar"), 
+            500: os.path.join("check_pt_{0}_500m".format(backbone), "experiment_1", "checkpoint.pth.tar"), 
+            1000: os.path.join("check_pt_{0}_1000m".format(backbone), "experiment_1", "checkpoint.pth.tar")
         },
         "MTL": {
             100: os.path.join("check_pt_{0}_100m_MTL".format(backbone), "experiment_1", "checkpoint.pth.tar"), 
@@ -87,7 +87,7 @@ if __name__ == "__main__":
         }
     }
 
-    input_size = {100: [15], 250: [30], 500: [60], 1000: [120]}
+    input_size = {100: [20], 250: [40], 500: [80], 1000: [160]}
     res = {100: 0.0009, 250: 0.00225, 500: 0.0045, 1000: 0.009}
     padding = 0.03
     tmp_dir = "tmp"
