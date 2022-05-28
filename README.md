@@ -15,7 +15,7 @@ python3 -m pip install shaft --upgrade
 ```
 
 We recommend users to install `gdal>=3.2.0` using `conda` first.
-Otherwise, installation may raise error about the environment variables of `gdal`. 
+Otherwise, installation may raise error about the environment variables of `gdal`.
 
 ### Data Download
 
@@ -25,9 +25,9 @@ The input data of SHAFT may include:
 
 - [Sentinel-2](https://sentinels.copernicus.eu/web/sentinel/missions/sentinel-2): RGB band, NIR band.
 
-- [SRTM](https://www2.jpl.nasa.gov/srtm/): DEM (optional). 
+- [SRTM](https://www2.jpl.nasa.gov/srtm/): DEM (optional).
 
-SHAFT contains some functions which can download above data directly from [Google Earth Engine](https://earthengine.google.com/). 
+SHAFT contains some functions which can download above data directly from [Google Earth Engine](https://earthengine.google.com/).
 
 Note that according to the [guidance](https://developers.google.com/earth-engine/guides/exporting) for exporting data from Google Earth Engine, we can not export data to any local devices directly. Thus, Google Drive is recommended as a destination where data are export and then we can download exported data to our local devices.
 
