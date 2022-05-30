@@ -25,14 +25,13 @@ jobs:
         # miniconda-version: "latest"
         # environment variables don’t persist between steps in a workflow, which breaks some things in Conda.
         # Installing the environment’s packages into the base environment avoids this issue
-        # auto-activate-base: true
         # activate-environment: test
         python-version: ${{ matrix.python-version }}
         channel-priority: true
         auto-activate-base: false
         activate-environment: anaconda-client-env
         environment-file: env.yml
-        # auto-update-conda: true
+        auto-update-conda: true
 
     - name: show conda info
       run: |
