@@ -51,7 +51,7 @@ setup(
     install_requires=[
         "torch >= 1.8.0",
         "torchvision >= 0.9.0",
-        "gdal >= 3.2.0",
+        "gdal >= 3.0.0",
         "numpy",
         "matplotlib",
         "scipy", 
