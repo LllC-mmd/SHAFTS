@@ -1,7 +1,8 @@
 # SHAFTS
 
-Deep-learning-based simultaneous extraction of building height and footprint from Sentinel imagery: development, evaluation and application. 
-More details can be found in [the descrition paper](https://gmd.copernicus.org/preprints/gmd-2022-85/).
+SHAFTS is a deep-learning-based Python package for **S**imultaneous extraction of building **H**eight **A**nd **F**ootprin**T** from **S**entinel Imagery
+
+More details can be found in [the model descrition paper](https://gmd.copernicus.org/preprints/gmd-2022-85/).
 
 ## Package Description
 
