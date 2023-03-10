@@ -1,5 +1,5 @@
 # SHAFTS
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7717081.svg)](https://doi.org/10.5281/zenodo.7717081)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7717080.svg)](https://doi.org/10.5281/zenodo.7717080)
 
 
 SHAFTS is a deep-learning-based Python package for **S**imultaneous extraction of building **H**eight **A**nd **F**ootprin**T** from **S**entinel Imagery
