@@ -15,7 +15,7 @@ from googleapiclient.errors import HttpError
 from google.cloud import storage
 from google.oauth2 import service_account
 
-from utils import *
+from utils.ee_ops import add_cloud_shadow_mask_infer, computeQualityScore_infer
 from .DL_model_tf import *
 
 

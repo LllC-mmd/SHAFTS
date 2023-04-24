@@ -99,10 +99,10 @@ lat_max = 51.90
 # ---specify the year (ranging between 2018 and 2022)
 year = 2020
 
-# ---specify the path to the pretrained SHAFTS's Tensorflow-based models
+# ---specify a local path to the pretrained SHAFTS's Tensorflow-based models
 pretrained_weight = './dl-models/height/check_pt_senet_100m_MTL_TF_gpu'
 
-# ---specify the output folder for storing building height and footprint maps
+# ---specify a local output folder for storing building height and footprint maps
 output_folder = './results'
 
 # ---specify the Google Cloud Service configuration
