@@ -21,7 +21,7 @@ setup(
     description="Simultaneous building Height And FootprinT extraction from Sentinel Imagery",
     long_description=readme(),
     long_description_content_type="text/markdown",
-    url="https://github.com/LllC-mmd/3DBuildingInfoMap",
+    url="https://github.com/LllC-mmd/SHAFTS",
     author=", ".join(
         [
             "Ruidong Li"
@@ -49,8 +49,10 @@ setup(
     # distclass=BinaryDistribution,
     ext_modules=[],
     install_requires=[
-        "torch >= 1.8.0",
-        "torchvision >= 0.9.0",
+        "torch",
+        "torchvision",
+        "tensorflow",
+        "tensorflow-probability",
         "gdal >= 3.0.0",
         "numpy",
         "matplotlib",
@@ -63,6 +65,7 @@ setup(
         "h5py",
         "shapely",
         "geopandas",
+        "rasterio",
         "lmdb",
         "kneed",  # kneed point detection for CCAP algorithms
         "pyarrow",
@@ -70,9 +73,9 @@ setup(
         "earthengine-api"
     ],
     include_package_data=True,
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     classifiers=[
-        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
         "Intended Audience :: Education",
         "Intended Audience :: Science/Research",
         "Operating System :: MacOS :: MacOS X",

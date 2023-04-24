@@ -701,9 +701,9 @@ if __name__ == "__main__":
     GCS_config = {
         'SERVICE_ACCOUNT': '***** GCSAccountName *****',
         'GS_ACCOUNT_JSON': '***** GCSAccountCredential *****',
-        'BUCKET': 'lyy-shafts',
-        'DATA_FOLDER': 'dataset_tmp',
-        }
+        'BUCKET': '***** name of the bucket set for dataset exporting in Google Cloud Storage *****',
+        'DATA_FOLDER': '*****  name of the folder which stores the exported dataset under the `BUCKET` *****',
+    }
 
     # ---Building height and footprint mapping
 
