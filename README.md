@@ -88,7 +88,7 @@ If users want to generate building height and footprint maps without downloading
 An example usage can be given as follows:
 
 ```python {cmd}
-from shaft import GBuildingMap
+from shaft.inference_gcloud import GBuildingMap
 
 # ---specify the mapping extent by the minimum/maximum of longitude and latitude
 lon_min = -0.50
