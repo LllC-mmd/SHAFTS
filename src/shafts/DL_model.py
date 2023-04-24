@@ -1462,31 +1462,9 @@ def model_CBAMResNetMTL_aux(input_channels: int, input_size: int, aux_input_size
 
 
 if __name__ == "__main__":
-    #pretrained_weight = os.path.join("DL_run", "res_file", "check_pt_cbam_100m", "experiment_2", "checkpoint.pth.tar")
-
-    # m = model_ResNet(in_plane=64, input_channels=6, input_size=30, num_block=4)
-    # m = model_ResNet_aux(in_plane=64, input_channels=6, input_size=30, aux_input_size=30, num_block=1, num_aux=1)
-    # m = model_ResNetMTL(in_plane=64, input_channels=6, input_size=30, num_block=4)
     m = model_ResNetMTL_aux(in_plane=64, input_channels=6, input_size=30, aux_input_size=30, num_block=1, num_aux=1)
-    # m = model_SEResNet(in_plane=64, input_channels=6, input_size=15, num_block=4, trained_record=pretrained_weight)
-    # m = model_CBAMResNet(in_plane=64, input_channels=6, input_size=60, num_block=3, trained_record=pretrained_weight)
-
     m.eval()
     '''
     for name, param in m.state_dict().items():
         print(name)
     '''
-
-    test_dta = torch.ones(8, 6, 120, 120)
-
-    test_aux = torch.ones(8, 1, 120, 120) * 2
-    test_aux[1] = test_aux[1] * 2
-    test_aux[2] = test_aux[2] * 4
-    test_aux[4] = test_aux[4] * 8
-
-    # test_out = m(test_dta)
-    # test_out = m(test_dta, test_aux)
-    # test_out, test_out_b = m(test_dta)
-    test_out, test_out_b = m(test_dta, test_aux)
-    print(test_out)
-    print(test_out_b)

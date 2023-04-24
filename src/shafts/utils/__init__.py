@@ -17,3 +17,8 @@ from .GEE_ops import (
     sentinel2_download_by_extent,
     sentinel2_download
 )
+
+from .ee_ops import (
+    add_cloud_shadow_mask_infer,
+    computeQualityScore_infer,
+)

@@ -257,7 +257,7 @@ class PatchDatasetFromLMDB(Dataset):
             else:
                 raise NotImplementedError
 
-            # ---------convert numpy.ndarray of shape [H, W, C] to torch.tensor [C, H, W]
+            # ---------convert numpy.ndarray of shape [H, W, C] in the range [0, 255] to torch.tensor [C, H, W] in the range [0, 1]
             patch = tensor_transform(patch).type(torch.FloatTensor)
 
             patch_multi_band.append(patch)
@@ -386,7 +386,7 @@ class PatchDatasetFromLMDB_MTL(Dataset):
             else:
                 raise NotImplementedError
 
-            # ---------convert numpy.ndarray of shape [H, W, C] to torch.tensor [C, H, W]
+            # ---------convert numpy.ndarray of shape [H, W, C] in the range [0, 255] to torch.tensor [C, H, W] in the range [0, 1]
             patch = tensor_transform(patch).type(torch.FloatTensor)
 
             patch_multi_band.append(patch)
