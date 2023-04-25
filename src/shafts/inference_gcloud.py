@@ -1,3 +1,9 @@
+import sys
+from pathlib import Path
+
+# Add the parent directory of the current script to sys.path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from typing import Union, List, Dict
 import datetime
 import re
