@@ -16,7 +16,6 @@ from google.cloud import storage
 from .DL_model_tf import *
 
 
-# FEATURES = ["VV_p50", "VH_p50", "B4", "B3", "B2", "B8", "elevation"]
 FEATURES = ["VV", "VH", "B4", "B3", "B2", "B8", "elevation"]
 cloudFreeKeepThresh = 2
 SR_BAND_SCALE = 1e4
