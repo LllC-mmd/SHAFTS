@@ -70,7 +70,8 @@ setup(
         "kneed",  # kneed point detection for CCAP algorithms
         "pyarrow",
         "opencv-python",
-        "earthengine-api"
+        "earthengine-api",
+        "gcloud"
     ],
     include_package_data=True,
     python_requires=">=3.8",
