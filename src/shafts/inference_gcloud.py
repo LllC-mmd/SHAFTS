@@ -20,6 +20,7 @@ from .DL_model_tf import *
 FEATURES = ["VV", "VH", "B4", "B3", "B2", "B8", "elevation"]
 cloudFreeKeepThresh = 2
 SR_BAND_SCALE = 1e4
+cloudScale = 30
 
 
 def add_cloud_bands_infer(img: ee.Image, cloud_prob_threshold=50):

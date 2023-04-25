@@ -2,6 +2,7 @@ import ee
 
 
 SR_BAND_SCALE = 1e4
+cloudScale = 30
 
 
 def add_cloud_bands_infer(img: ee.Image, cloud_prob_threshold=50):
