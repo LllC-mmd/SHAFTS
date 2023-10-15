@@ -15,7 +15,7 @@ jobs:
     # timeout-minutes: 480
 
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@v2
     - name: Set up conda
       uses: conda-incubator/setup-miniconda@v2
       with:
@@ -27,7 +27,7 @@ jobs:
         auto-activate-base: true
         channel-priority: true
         environment-file: env.yml
-        miniforge-variable: Mambaforge
+        miniforge-variant: Mambaforge
         use-mamba: true
 
     - name: Install pypa/build
