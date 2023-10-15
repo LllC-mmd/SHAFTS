@@ -51,7 +51,7 @@ setup(
     install_requires=[
         "torch",
         "torchvision",
-        "tensorflow",
+        "tensorflow >= 2.13.0",
         "tensorflow-probability",
         "gdal >= 3.0.0",
         "numpy",

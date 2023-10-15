@@ -182,6 +182,9 @@ class Trainer(object):
         if args.input_size == 15:
             in_plane = 64
             num_block = 2
+        elif args.input_size == 20:
+            in_plane = 64
+            num_block = 1
         elif args.input_size == 30:
             in_plane = 64
             num_block = 1
@@ -413,6 +416,9 @@ class TrainerMTL(object):
         if args.input_size == 15:
             in_plane = 64
             num_block = 2
+        elif args.input_size == 20:
+            in_plane = 64
+            num_block = 1
         elif args.input_size == 30:
             in_plane = 64
             num_block = 1

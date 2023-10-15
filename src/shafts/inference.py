@@ -1202,6 +1202,9 @@ def pred_height_from_tiff_DL_patch_MTL(extent: list, out_footprint_file: str, ou
     if patch_size[0] == 15:
         in_plane = 64
         num_block = 2
+    elif patch_size[0] == 20:
+        in_plane = 64
+        num_block = 2
     elif patch_size[0] == 30:
         in_plane = 64
         num_block = 1
