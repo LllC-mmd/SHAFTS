@@ -20,6 +20,7 @@ jobs:
       uses: conda-incubator/setup-miniconda@v2
       with:
         miniconda-version: "latest"
+        mamba-version: "*"
         # environment variables don’t persist between steps in a workflow, which breaks some things in Conda.
         # Installing the environment’s packages into the base environment avoids this issue
         activate-environment: base
@@ -27,8 +28,8 @@ jobs:
         auto-activate-base: true
         channel-priority: true
         environment-file: env.yml
-        miniforge-variant: Mambaforge
-        use-mamba: true
+        # miniforge-variant: Mambaforge
+        # use-mamba: true
 
     - name: Install pypa/build
       shell: bash -l {0}
