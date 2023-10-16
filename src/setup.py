@@ -49,7 +49,6 @@ setup(
     # distclass=BinaryDistribution,
     ext_modules=[],
     install_requires=[
-        "libarchive",
         "torch",
         "torchvision",
         "tensorflow >= 2.13.0",
