@@ -53,7 +53,7 @@ setup(
         "torchvision",
         "tensorflow >= 2.13.0",
         "tensorflow-probability",
-        "gdal >= 3.0.0",
+        #"gdal >= 3.0.0",
         "numpy",
         "matplotlib",
         "scipy", 
