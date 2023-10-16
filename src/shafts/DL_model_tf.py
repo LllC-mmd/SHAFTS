@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import tensorflow as tf
 from keras import layers
-from keras.utils.layer_utils import count_params
+# from keras.utils.layer_utils import count_params
 
 
 kernel_size_ref = {100: 20, 250: 40, 500: 80, 1000: 160}
@@ -825,6 +825,9 @@ def model_SEResNetAuxTF(target_resolution: int, log_scale=False, activation="rel
     if psize == 15:
         in_plane = 64
         num_block = 2
+    elif psize == 20:
+        in_plane = 64
+        num_block = 2
     elif psize == 30:
         in_plane = 64
         num_block = 1
@@ -853,15 +856,18 @@ def model_SEResNetAuxTF(target_resolution: int, log_scale=False, activation="rel
         model.compute_output_shape(input_shape=(None, psize, psize, 7))
         model.save(saved_path_tf)
    
-    total_num = sum([count_params(w) for w in model.trainable_weights]) + sum([count_params(w) for w in model.non_trainable_weights])
-    trainable_num = sum([count_params(w) for w in model.trainable_weights])
-    print("Total parameter of SEResNet: ", total_num, " Trainable parameter of SEResNet: ", trainable_num)
+    # total_num = sum([count_params(w) for w in model.trainable_weights]) + sum([count_params(w) for w in model.non_trainable_weights])
+    # trainable_num = sum([count_params(w) for w in model.trainable_weights])
+    # print("Total parameter of SEResNet: ", total_num, " Trainable parameter of SEResNet: ", trainable_num)
     return model
 
 
 def model_SEResNetMTLAuxTF(target_resolution: int, crossed=False, log_scale=False, cuda_used=True, model_resaved=False, **kwargs) -> BuildingNet_aux_tf:
     psize = kernel_size_ref[target_resolution]
     if psize == 15:
+        in_plane = 64
+        num_block = 2
+    elif psize == 20:
         in_plane = 64
         num_block = 2
     elif psize == 30:
@@ -893,9 +899,9 @@ def model_SEResNetMTLAuxTF(target_resolution: int, crossed=False, log_scale=Fals
         model.compute_output_shape(input_shape=(None, psize, psize, 7))
         model.save(saved_path_tf)
    
-    total_num = sum([count_params(w) for w in model.trainable_weights]) + sum([count_params(w) for w in model.non_trainable_weights])
-    trainable_num = sum([count_params(w) for w in model.trainable_weights])
-    print("Total parameter of SEResNet: ", total_num, " Trainable parameter of SEResNet: ", trainable_num)
+    # total_num = sum([count_params(w) for w in model.trainable_weights]) + sum([count_params(w) for w in model.non_trainable_weights])
+    # trainable_num = sum([count_params(w) for w in model.trainable_weights])
+    # print("Total parameter of SEResNet: ", total_num, " Trainable parameter of SEResNet: ", trainable_num)
     return model
 
 
