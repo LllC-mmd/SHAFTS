@@ -32,7 +32,7 @@ jobs:
         activate-environment: anaconda-client-env
         environment-file: env.yml
         auto-update-conda: true
-        mamba-version: "*"
+        #mamba-version: "*"
 
     - name: show conda info
       run: |
