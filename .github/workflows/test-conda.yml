@@ -27,12 +27,13 @@ jobs:
         # Installing the environment’s packages into the base environment avoids this issue
         # activate-environment: test
         python-version: ${{ matrix.python-version }}
-        channel-priority: true
+        mamba-version: "*"
+        # channel-priority: true
+        channels: conda-forge,defaults
         auto-activate-base: false
         activate-environment: anaconda-client-env
         environment-file: env.yml
-        auto-update-conda: true
-        #mamba-version: "*"
+        #auto-update-conda: true
 
     - name: show conda info
       run: |
