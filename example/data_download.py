@@ -1,4 +1,4 @@
-from shaft.utils.GEE_ops import sentinel2_download_by_extent
+from shafts.utils.GEE_ops import sentinel2_download_by_extent
 
 
 # ---specify the spatial extent and year for Sentinel-2's images

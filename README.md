@@ -8,14 +8,14 @@ More details can be found in [the model descrition paper](https://gmd.copernicus
 
 ## Package Description
 
-This project focuses on patch-level building height and footprint mapping from Sentinel imagery. **SHAFT** is an abbreviation for **S**imultaneous building **H**eight **A**nd **F**ootprin**T** extraction from **S**entinel Imagery.
+This project focuses on patch-level building height and footprint mapping from Sentinel imagery. **SHAFTS** is an abbreviation for **S**imultaneous building **H**eight **A**nd **F**ootprin**T** extraction from **S**entinel Imagery.
 
 ### Installation
 
-SHAFT requires 64-bit `python` 3.7+ and can be installed with `pip` in command line prompt:
+SHAFTS requires 64-bit `python` 3.7+ and can be installed with `pip` in command line prompt:
 
 ```
-python3 -m pip install shaft --upgrade
+python3 -m pip install shafts --upgrade
 ```
 
 We recommend users to install `gdal>=3.2.0` using `conda` first.
@@ -23,7 +23,7 @@ Otherwise, installation may raise error about the environment variables of `gdal
 
 ### Data Download
 
-The input data of SHAFT may include:
+The input data of SHAFTS may include:
 
 - [Sentinel-1](https://sentinels.copernicus.eu/web/sentinel/missions/sentinel-1): VH band, VV band.
 
@@ -31,14 +31,14 @@ The input data of SHAFT may include:
 
 - [SRTM](https://www2.jpl.nasa.gov/srtm/): DEM (optional).
 
-SHAFT contains some functions which can download above data directly from [Google Earth Engine](https://earthengine.google.com/).
+SHAFTS contains some functions which can download above data directly from [Google Earth Engine](https://earthengine.google.com/).
 
 Note that according to the [guidance](https://developers.google.com/earth-engine/guides/exporting) for exporting data from Google Earth Engine, we can not export data to any local devices directly. Thus, Google Drive is recommended as a destination where data are export and then we can download exported data to our local devices.
 
 An example for downloading Sentinel-2's image via `sentinel2_download_by_extent` is given as follows:
 
 ```python {cmd}
-from shaft.utils.GEE_ops import sentinel2_download_by_extent
+from shafts.utils.GEE_ops import sentinel2_download_by_extent
 
 # ---specify the spatial extent and year for Sentinel-2's images
 lon_min = -87.740
@@ -57,7 +57,7 @@ sentinel2_download_by_extent(lon_min=lon_min, lat_min=lat_min, lon_max=lon_max, 
                                 year=year, dst_dir=dst_dir, file_name=file_name, dst=dst)
 ```
 
-Also, SHAFT gives functions such as `sentinel1_download`, `sentinel2_download` and `srtm_download` to download images in a batch way by a `.csv` file.
+Also, SHAFTS gives functions such as `sentinel1_download`, `sentinel2_download` and `srtm_download` to download images in a batch way by a `.csv` file.
 
 ### Building Height and Footprint prediction
 
@@ -88,7 +88,7 @@ If users want to generate building height and footprint maps without downloading
 An example usage can be given as follows:
 
 ```python {cmd}
-from shaft.inference_gcloud import GBuildingMap
+from shafts.inference_gcloud import GBuildingMap
 
 # ---specify the mapping extent by the minimum/maximum of longitude and latitude
 lon_min = -0.50

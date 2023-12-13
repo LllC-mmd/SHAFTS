@@ -1,6 +1,6 @@
 import os
 import torch
-from shaft.inference import pred_height_from_tiff_DL_patch, pred_height_from_tiff_DL_patch_MTL
+from shafts.inference import pred_height_from_tiff_DL_patch, pred_height_from_tiff_DL_patch_MTL
 
 
 if __name__ == "__main__":
@@ -20,8 +20,8 @@ if __name__ == "__main__":
     f_max = 1.0
 
     # ---specify the settings of cases
-    target_resolution = 100                                               # target resolution for building height and footprint mapping 
-    target_extent = [-4.4786000, 55.6759000, -3.8828000, 56.0197000]      # target extent for building height and footprint mapping 
+    target_resolution = 100                                               # target resolution for building height and footprint mapping
+    target_extent = [-4.4786000, 55.6759000, -3.8828000, 56.0197000]      # target extent for building height and footprint mapping
 
     # ------specify the path of input Sentinel data (note: please use the following format for input data specification)
     s1_key = "sentinel_1"       # key which indicates the path of Sentinel-1's files
@@ -29,7 +29,7 @@ if __name__ == "__main__":
 
     input_img = {
         "50pt": {  # use annual medians as aggregation operation for one year data
-            s1_key: os.path.join(case_prefix, "infer_test_Glasgow", "raw_data", "Glasgow_2020_sentinel_1.tif"),      # path of input Sentinel-1 image 
+            s1_key: os.path.join(case_prefix, "infer_test_Glasgow", "raw_data", "Glasgow_2020_sentinel_1.tif"),      # path of input Sentinel-1 image
             s2_key: os.path.join(case_prefix, "infer_test_Glasgow", "raw_data", "Glasgow_2020_sentinel_2.tif"),      # path of input Sentinel-2 image
         }
     }
@@ -45,7 +45,7 @@ if __name__ == "__main__":
     model = "SEResNet18"            # name of pretrained models
     pretrained_model_path = os.path.join("check_pt_{0}_100m_MTL".format(backbone), "experiment_1", "checkpoint.pth.tar")  # path of files of pretrained models
     input_patch_size = [20]         # size of input sizes required by pretrained models
-    
+
     # ---specify the common settings of prediction
     padding = 0.03                                  # padding size outside the target region (it is recommended that padding should not be smaller than 0.03)
     cuda_used = torch.cuda.is_available()           # check whether CUDA can be used for prediction
@@ -60,12 +60,12 @@ if __name__ == "__main__":
     output_height_path = os.path.join(output_dir, output_height_file)                           # path of output building height files
 
     # ---start our prediction
-    pred_height_from_tiff_DL_patch_MTL(extent=target_extent, out_footprint_file=output_footprint_path, out_height_file=output_height_path, 
+    pred_height_from_tiff_DL_patch_MTL(extent=target_extent, out_footprint_file=output_footprint_path, out_height_file=output_height_path,
                                             tif_ref=input_img, patch_size=input_patch_size,
                                             predictor=model, trained_record=pretrained_model_path, resolution=target_res_mapping[target_resolution],
                                             s1_key=s1_key, s2_key=s2_key,
-                                            aux_feat_info=aux_data, crossed=False, base_dir=tmp_dir, padding=padding, 
+                                            aux_feat_info=aux_data, crossed=False, base_dir=tmp_dir, padding=padding,
                                             batch_size=batch_size, tmp_suffix=None, log_scale=False,
-                                            cuda_used=cuda_used, 
+                                            cuda_used=cuda_used,
                                             h_min=h_min, h_max=h_max,
                                             f_min=f_min, f_max=f_max)

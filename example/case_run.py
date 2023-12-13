@@ -1,6 +1,6 @@
 import os
 import torch
-from shaft.inference import pred_height_from_tiff_DL_patch, pred_height_from_tiff_DL_patch_MTL
+from shafts.inference import pred_height_from_tiff_DL_patch, pred_height_from_tiff_DL_patch_MTL
 
 
 if __name__ == "__main__":
@@ -42,7 +42,7 @@ if __name__ == "__main__":
                 "DEM": {
                     "path": os.path.join(case_prefix, "infer_test_Glasgow", "raw_data", "Glasgow_srtm.tif"),
                     "patch_size_ratio": 1.0,
-                } 
+                }
             },
             "output_prefix": "Glasgow",
         },
@@ -61,7 +61,7 @@ if __name__ == "__main__":
                 "DEM": {
                     "path": os.path.join(case_prefix, "infer_test_Chicago", "raw_data", "Chicago_srtm.tif"),
                     "patch_size_ratio": 1.0,
-                } 
+                }
             },
             "output_prefix": "Chicago",
         },
@@ -74,15 +74,15 @@ if __name__ == "__main__":
 
     trained_record = {
         "STL": {
-            100: os.path.join("check_pt_{0}_100m".format(backbone), "experiment_1", "checkpoint.pth.tar"), 
-            250: os.path.join("check_pt_{0}_250m".format(backbone), "experiment_1", "checkpoint.pth.tar"), 
-            500: os.path.join("check_pt_{0}_500m".format(backbone), "experiment_1", "checkpoint.pth.tar"), 
+            100: os.path.join("check_pt_{0}_100m".format(backbone), "experiment_1", "checkpoint.pth.tar"),
+            250: os.path.join("check_pt_{0}_250m".format(backbone), "experiment_1", "checkpoint.pth.tar"),
+            500: os.path.join("check_pt_{0}_500m".format(backbone), "experiment_1", "checkpoint.pth.tar"),
             1000: os.path.join("check_pt_{0}_1000m".format(backbone), "experiment_1", "checkpoint.pth.tar")
         },
         "MTL": {
-            100: os.path.join("check_pt_{0}_100m_MTL".format(backbone), "experiment_1", "checkpoint.pth.tar"), 
-            250: os.path.join("check_pt_{0}_250m_MTL".format(backbone), "experiment_1", "checkpoint.pth.tar"), 
-            500: os.path.join("check_pt_{0}_500m_MTL".format(backbone), "experiment_1", "checkpoint.pth.tar"), 
+            100: os.path.join("check_pt_{0}_100m_MTL".format(backbone), "experiment_1", "checkpoint.pth.tar"),
+            250: os.path.join("check_pt_{0}_250m_MTL".format(backbone), "experiment_1", "checkpoint.pth.tar"),
+            500: os.path.join("check_pt_{0}_500m_MTL".format(backbone), "experiment_1", "checkpoint.pth.tar"),
             1000: os.path.join("check_pt_{0}_1000m_MTL".format(backbone), "experiment_1", "checkpoint.pth.tar")
         }
     }
@@ -113,9 +113,9 @@ if __name__ == "__main__":
                 pred_height_from_tiff_DL_patch(extent=extent, out_file=output_path, tif_ref=input_ref, patch_size=patch_size,
                                                 predictor=model, trained_record=pt_path, resolution=output_res,
                                                 s1_key=s1_key, s2_key=s2_key,
-                                                aux_feat_info=aux_feat_info, base_dir=tmp_dir, padding=padding, 
-                                                batch_size=batch_size, tmp_suffix=None, activation=var_ref[target_var]["activation"], 
-                                                log_scale=False, cuda_used=cuda_used, 
+                                                aux_feat_info=aux_feat_info, base_dir=tmp_dir, padding=padding,
+                                                batch_size=batch_size, tmp_suffix=None, activation=var_ref[target_var]["activation"],
+                                                log_scale=False, cuda_used=cuda_used,
                                                 v_min=var_ref[target_var]["min"], v_max=var_ref[target_var]["max"])
 
             # ------do inference by MTL models
@@ -126,12 +126,12 @@ if __name__ == "__main__":
             output_height_file = "_".join([case_loc[loc]["output_prefix"], "height", backbone + "_MTL"]) + ".tif"
             output_height_path = os.path.join(output_dir, output_height_file)
 
-            pred_height_from_tiff_DL_patch_MTL(extent=extent, out_footprint_file=output_footprint_path, out_height_file=output_height_path, 
+            pred_height_from_tiff_DL_patch_MTL(extent=extent, out_footprint_file=output_footprint_path, out_height_file=output_height_path,
                                                 tif_ref=input_ref, patch_size=patch_size,
                                                 predictor=model, trained_record=pt_path, resolution=output_res,
                                                 s1_key=s1_key, s2_key=s2_key,
-                                                aux_feat_info=aux_feat_info, crossed=False, base_dir=tmp_dir, padding=padding, 
+                                                aux_feat_info=aux_feat_info, crossed=False, base_dir=tmp_dir, padding=padding,
                                                 batch_size=batch_size, tmp_suffix=None, log_scale=False,
-                                                cuda_used=cuda_used, 
+                                                cuda_used=cuda_used,
                                                 h_min=var_ref["height"]["min"], h_max=var_ref["height"]["max"],
                                                 f_min=var_ref["footprint"]["min"], f_max=var_ref["footprint"]["max"])
