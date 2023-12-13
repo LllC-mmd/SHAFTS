@@ -29,11 +29,11 @@ jobs:
           powershell
         cache-environment: true
         post-cleanup: 'all'
-    - name: show pytest version
-      run: |
-        pytest --version
-        pytest
-      shell: micromamba-shell {0}
+    # - name: show pytest version
+    #   run: |
+    #     pytest --version
+    #     pytest
+    #   shell: micromamba-shell {0}
     # - name: Import numpy in micromamba environment (bash)
     #   run: python -c "import numpy"
     #   shell: bash -el {0}
@@ -84,10 +84,14 @@ jobs:
     #       conda info
     #       conda list
 
-    - name: Install pypa/build
+    - name: install locally and test
       shell: micromamba-shell {0}
       run: |
         make test
+
+    - name: build and install locally
+      shell: micromamba-shell {0}
+      run: |
         make install
 
     - name: Store the ${{ matrix.os }} wheel
