@@ -24,7 +24,7 @@ setup(
     url="https://github.com/LllC-mmd/SHAFTS",
     author=", ".join(
         [
-            "Ruidong Li"
+            "Ruidong Li",
             "Dr Ting Sun",
             "Prof Guangheng Ni",
         ]
@@ -56,7 +56,7 @@ setup(
         #"gdal >= 3.0.0",
         "numpy",
         "matplotlib",
-        "scipy", 
+        "scipy",
         "pandas",
         "albumentations",
         "scikit-learn",

@@ -31,10 +31,12 @@ PYTHON := $(if $(PYTHON_exe),$(PYTHON_exe),python)
 
 MODULE = shafts
 
-main:
+# build wheel and install the package
+pip:
 	conda init bash
 	$(MAKE) clean
 	${PYTHON} setup.py bdist_wheel
+	${PYTHON} -m pip install --upgrade --force-reinstall dist/*.whl
 
 # install package in dev mode and do pytest
 test:
