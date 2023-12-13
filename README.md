@@ -4,22 +4,72 @@
 
 SHAFTS is a deep-learning-based Python package for **S**imultaneous extraction of building **H**eight **A**nd **F**ootprin**T** from **S**entinel Imagery
 
-More details can be found in [the model descrition paper](https://gmd.copernicus.org/articles/16/751/2023/gmd-16-751-2023.html).
+## Citation
+More details can be found in [the model description paper](https://gmd.copernicus.org/articles/16/751/2023/gmd-16-751-2023.html).
 
-## Package Description
+Please cite the paper if you use SHAFTS in your research.
 
-This project focuses on patch-level building height and footprint mapping from Sentinel imagery. **SHAFTS** is an abbreviation for **S**imultaneous building **H**eight **A**nd **F**ootprin**T** extraction from **S**entinel Imagery.
-
-### Installation
-
-SHAFTS requires 64-bit `python` 3.7+ and can be installed with `pip` in command line prompt:
-
+```bibtex
+@Article{gmd-16-751-2023,
+AUTHOR = {Li, R. and Sun, T. and Tian, F. and Ni, G.-H.},
+TITLE = {SHAFTS (v2022.3): a deep-learning-based Python package for simultaneous extraction of building height and footprint from sentinel imagery},
+JOURNAL = {Geoscientific Model Development},
+VOLUME = {16},
+YEAR = {2023},
+NUMBER = {2},
+PAGES = {751--778},
+URL = {https://gmd.copernicus.org/articles/16/751/2023/},
+DOI = {10.5194/gmd-16-751-2023}
+}
 ```
-python3 -m pip install shafts --upgrade
+
+## Installation
+
+### System Requirements
+
+SHAFTS is developed and tested on Linux and macOS.
+
+It should also work on Windows, but we have not tested it yet; but you may consider using [Windows Subsystem for Linux](https://docs.microsoft.com/en-us/windows/wsl/install-win10) to run SHAFTS.
+
+To use SHAFTS, you need to install the following packages, which can be installed via [`mamba`](https://github.com/mamba-org/mamba) with the provided [`env.yml`](./env.yml) file:
+
+```shell
+mamba env create -f env.yml
 ```
 
-We recommend users to install `gdal>=3.2.0` using `conda` first.
-Otherwise, installation may raise error about the environment variables of `gdal`.
+Once the environment is created, activate it via:
+
+```shell
+mamba activate shafts-dev
+```
+
+### Install SHAFTS
+
+You can install SHAFTS from PyPI or from source.
+
+Please activate [the environment created by `mamba`](#system-requirements) before installing SHAFTS.
+
+#### Install from PyPI
+
+```shell
+pip install shafts
+```
+
+#### Install from source
+
+1. Clone the repository:
+
+```shell
+git clone https://github.com/LllC-mmd/SHAFTS.git
+```
+
+2. Install the package:
+
+ Change your current directory to the root of the repository and run:
+```shell
+make test
+```
+This will install the package in editable mode and run the tests.
 
 ### Data Download
 
