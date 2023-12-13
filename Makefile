@@ -29,12 +29,10 @@ PYTHON := $(if $(PYTHON_exe),$(PYTHON_exe),python)
 
 MODULE = shafts
 
-# default make options
-main:
+# build wheel and install the package
+pip:
 	conda init bash
-	$(MAKE) -C $(src_dir) main
-
-# build wheel
+	$(MAKE) -C $(src_dir) pip
 wheel:
 	conda init bash
 	$(MAKE) -C $(src_dir) main
@@ -43,7 +41,7 @@ wheel:
 clean:
 	$(MAKE) -C $(src_dir) clean
 
-# make shafts and run test cases
+# install package in dev mode and do pytest
 test:
 	conda init bash
 	$(MAKE) -C $(src_dir) test
