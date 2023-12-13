@@ -71,7 +71,7 @@ make test
 ```
 This will install the package in editable mode and run the tests.
 
-### Data Download
+## Data Download
 
 The input data of SHAFTS may include:
 
@@ -109,7 +109,7 @@ sentinel2_download_by_extent(lon_min=lon_min, lat_min=lat_min, lon_max=lon_max, 
 
 Also, SHAFTS gives functions such as `sentinel1_download`, `sentinel2_download` and `srtm_download` to download images in a batch way by a `.csv` file.
 
-### Building Height and Footprint prediction
+## Building Height and Footprint prediction
 
 After preparing above necessary images, building height and footprint information can be predicted by:
 
@@ -131,7 +131,7 @@ Since MTL models can give both building height and footprint predictions, we onl
 
 Note that all of models offered in the above link requires SRTM images as one of input variables, though more pretrained DL models during package development are collected for performance comparison.
 
-### Integration with Google Cloud Ecosystem
+## Integration with Google Cloud Ecosystem
 
 If users want to generate building height and footprint maps without downloading Sentinel data to a local machine, SHAFTS offers the function named `GBuildingMap` which streamlines the workflow of satellite image preprocessing, TFRecord-based dataset management and DL model inference.
 
