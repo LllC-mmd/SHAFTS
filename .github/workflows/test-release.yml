@@ -92,7 +92,7 @@ jobs:
     - name: build and install locally
       shell: micromamba-shell {0}
       run: |
-        make install
+        make
 
     - name: Store the ${{ matrix.os }} wheel
       uses: actions/upload-artifact@v2
