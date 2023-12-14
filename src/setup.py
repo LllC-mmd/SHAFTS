@@ -69,7 +69,7 @@ setup(
         "lmdb",
         "kneed",  # kneed point detection for CCAP algorithms
         "pyarrow",
-        "opencv-python",
+        # "opencv-python",
         "earthengine-api",
         "gcloud"
     ],
