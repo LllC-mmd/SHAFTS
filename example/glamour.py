@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, List
 import os
 import numpy as np
 import pandas as pd
@@ -11,7 +11,7 @@ import rasterio
 import rasterio.plot as rplt
 import rasterio.mask as rmask
 from rasterio.features import geometry_mask
-from shapely.geometry import box
+from shapely.geometry import box, Polygon, MultiPolygon, GeometryCollection
 
 import contextily as ctx
 import pydeck as pdk
@@ -55,6 +55,23 @@ def geotiff_to_deckFeat(file_path, map_extent=None, mask_shp=None):
             os.remove(input_file_path)
 
         return lon_list, lat_list, val_list
+    
+
+def explode_polygon_subproc(row: gpd.GeoSeries, col_namelist: List):
+    single_part = {}
+    geom_row = row.geometry
+    if isinstance(geom_row, MultiPolygon):
+        single_part["geometry"] = [g for g in geom_row.geoms]
+    elif isinstance(geom_row, GeometryCollection):
+        single_part["geometry"] = [g for g in geom_row.geoms if isinstance(g, Polygon)]
+    else:
+        single_part["geometry"] = [geom_row]
+    
+    for col_name in col_namelist:
+        single_part[col_name] = row[col_name]
+    
+    return single_part
+    
 # ******************** utility functions ********************
     
 # ---[1] data retrieval
@@ -403,8 +420,118 @@ def ana_glamour_joint_distribution(output_path: str, glamour_base_dir: str, lon_
         os.remove(tmp_bf_file)
 
 
+def ana_glamour_add_height_attribute(building_path: str, glamour_base_dir: str, height_field="BldgH", bldgID_field="bldgID", tmp_dir=".", output_path="_bldgH.gpkg"):
+    """
+    Attach the average building height to the building vector file using the information from the GLAMOUR dataset.
+
+    Args:
+        building_path (str): The path to the building vector file.
+        glamour_base_dir (str): The base directory of the GLAMOUR dataset.
+        height_field (str, optional): The name of the height attribute field to updated/added in the building vector file. Defaults to "BldgH".
+        bldgID_field (str, optional): The name of the building ID attribute field in the building vector file. If not provided, the ID will automatically generated. Defaults to "bldgID".
+        tmp_dir (str, optional): The temporary directory to store intermediate files. Defaults to ".".
+        output_path (str, optional): The path to save the updated building vector file. If not provided, the original file will be overwritten. Defaults to None.
+    """
+
+    padding = 0.02
+    BH_min = 2.0
+
+    bldg_gdf = gpd.read_file(building_path)
+    
+    # ------preprocess the building vector file into single-part polygons
+    bldg_parts = bldg_gdf.apply(lambda row: explode_polygon_subproc(row, [col for col in bldg_gdf.columns if col != "geometry"]), axis=1, result_type="expand")
+    bldg_parts = bldg_parts.explode("geometry", ignore_index=True)
+    bldg_gdf = gpd.GeoDataFrame(bldg_parts, crs=bldg_gdf.crs)
+    bldg_gdf = bldg_gdf[np.array(bldg_gdf.apply(lambda x: x["geometry"] is not None, axis=1))]
+
+    if height_field in bldg_gdf.columns:
+        height_field = "_" + height_field
+    # bldg_gdf[height_field] = 0.0
+
+    if bldgID_field in bldg_gdf.columns:
+        bldgID_field = "_" + bldgID_field
+    bldg_gdf[bldgID_field] = np.arange(0, len(bldg_gdf), dtype=np.int32)
+
+    # ------check whether the original CRS of the building vector file 
+    if bldg_gdf.crs is None:
+        target_crs = "EPSG:4326"
+    else:
+        target_crs = bldg_gdf.crs.to_string()
+
+    bldg_gdf_wgs84 = bldg_gdf.to_crs("EPSG:4326")
+    bds_wgs84 = bldg_gdf_wgs84.bounds
+    lon_min_wgs84 = bds_wgs84.minx.min()
+    lon_max_wgs84 = bds_wgs84.maxx.max()
+    lat_min_wgs84 = bds_wgs84.miny.min()
+    lat_max_wgs84 = bds_wgs84.maxy.max()
+    bh_path = os.path.join(tmp_dir, "_tmp_BH.tif")
+    flag = get_glamour_by_extent(bh_path, glamour_base_dir, "height", lon_min_wgs84 - padding, lat_min_wgs84 - padding, lon_max_wgs84 + padding, lat_max_wgs84 + padding)
+
+    if flag:
+        # ------reproject the `bh` file to the same CRS as the building vector file
+        bh_reproj_path = os.path.join(tmp_dir, "_tmp_BH_reproj.tif")
+        gdal.Warp(bh_reproj_path, bh_path, format="GTiff", dstSRS=target_crs, dstNodata=-255)
+
+        bh_ds = gdal.Open(bh_reproj_path)
+        bh_gt = list(bh_ds.GetGeoTransform())
+        x0, dx, _, y0, _, dy = bh_gt
+        bh_dta = bh_ds.ReadAsArray()
+        bh_nodata = bh_ds.GetRasterBand(1).GetNoDataValue()
+        bh_dta = np.where(np.logical_or(bh_dta <= 0, bh_dta == bh_nodata), 0.0, bh_dta)
+        ny, nx = bh_dta.shape
+
+        bds = bldg_gdf.bounds
+        lon_min = bds.minx.min()
+        lon_max = bds.maxx.max()
+        lat_min = bds.miny.min()
+        lat_max = bds.maxy.max()
+
+        # ------create the grid
+        x_id_start = int(np.floor((lon_min - x0) / dx))
+        x_id_end = int(np.ceil((lon_max - x0) / dx))
+        y_id_start = int((np.floor((lat_max - y0) / dy)))
+        y_id_end = int(np.ceil((lat_min - y0) / dy))
+        num_x = x_id_end - x_id_start + 1
+        x_left = x0 + dx * np.arange(x_id_start, x_id_end + 1)
+        x_right = x_left + dx
+        num_y = y_id_end - y_id_start + 1
+        y_upper = y0 + dy * np.arange(y_id_start, y_id_end + 1)
+        y_lower = y_upper + dy
+
+        grid_df = gpd.GeoDataFrame({"geometry": [Polygon([(x_left[j], y_upper[i]), (x_left[j], y_lower[i]), (x_right[j], y_lower[i]), (x_right[j], y_upper[i])]) for i in range(0, num_y) for j in range(0, num_x)], 
+                                    "VAL": bh_dta[np.clip(np.arange(y_id_start, y_id_end + 1), 0, ny - 1)][:, np.clip(np.arange(x_id_start, x_id_end + 1), 0, nx - 1)].flatten()},
+                                    crs=bldg_gdf.crs)
+        
+        # ------get the intersection of the building and the grid
+        intersect_gdf = gpd.overlay(grid_df, bldg_gdf, how="intersection")
+        intersect_gdf["area"] = intersect_gdf["geometry"].area
+        intersect_gdf["bh_tmp"] = intersect_gdf["VAL"] * intersect_gdf["area"]
+
+        agg_intersect_gdf = intersect_gdf.groupby(bldgID_field).agg({"area": "sum",
+                                                                        "bh_tmp": "sum"})
+
+        agg_intersect_gdf[height_field] = agg_intersect_gdf["bh_tmp"] / agg_intersect_gdf["area"]
+        agg_intersect_gdf.sort_values(by=[bldgID_field], inplace=True, ascending=True)
+
+        bldg_gdf = bldg_gdf.merge(agg_intersect_gdf, on=bldgID_field, how="left")
+        bldg_gdf[height_field] = np.where(bldg_gdf[height_field] < BH_min, BH_min, bldg_gdf[height_field])  # in case that some buildings are not covered by the GLAMOUR dataset
+        bldg_gdf[height_field] = np.round(bldg_gdf[height_field], 2)
+        bldg_gdf.drop(columns=["area", "bh_tmp", bldgID_field], inplace=True)
+        
+        if output_path is not None:
+            bldg_gdf.to_file(output_path)
+            print("Output building file saved to: {0} with the height field named `{1}`".format(output_path, height_field))
+        else:
+            bldg_gdf.to_file(building_path)
+            print("Building file is updated to: {0} with the height field named `{1}`".format(building_path, height_field))
+        
+        os.remove(bh_path)
+        os.remove(bh_reproj_path)
+
+
 if __name__ == "__main__":
-    glamour_base_dir = "*** folder which contains the `BH_100m` and `BF_100` sub-folders of the GLAMOUR dataset ***"
+    # glamour_base_dir = "*** folder which contains the `BH_100m` and `BF_100` sub-folders of the GLAMOUR dataset ***"
+    glamour_base_dir = "/Volumes/lyy-231111/GLAMOUR"
 
     # ---define the geospatial extent
     lon_min = 116.56
@@ -436,7 +563,16 @@ if __name__ == "__main__":
                                 mask_path=mask_shp_path)
     
     # ---[3] data analysis
+    # ------plot the joint distribution of building height and footprint
     ana_glamour_joint_distribution("./GLAMOUR_test_joint.png", glamour_base_dir,
                                     lon_min, lat_min, lon_max, lat_max,
                                     bh_min=3.0, bh_max=30.0, bf_min=0.0, bf_max=1.0,
                                     w_h_ratio=1.0, base_size=5.0, mask_path=mask_shp_path)
+    
+    # ------attach the average building height to the building vector file
+    bldg_path = "./data/tz_bldg.gpkg"
+    output_bldg_path = "./data/tz_bldg_height.gpkg"
+
+    ana_glamour_add_height_attribute(bldg_path, glamour_base_dir, 
+                                     height_field="BldgH", bldgID_field="bldgID", 
+                                     tmp_dir=".", output_path=output_bldg_path)
